@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jainaspp.github.io/pip-books/sitemap.xml

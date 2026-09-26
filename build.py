@@ -1,0 +1,238 @@
+#!/usr/bin/env python3
+"""Build the static Pip books site. Run: python3 build.py (needs Pillow and the book page PNGs on the box)."""
+import html, os, json
+from pathlib import Path
+from PIL import Image, ImageFilter
+
+ROOT = Path(__file__).parent
+SITE = "https://jainaspp.github.io/pip-books"
+GR = "https://jainaspark4.gumroad.com/l/"
+UTM = "?utm_source=pipsite"
+EMAIL = "jainaspp@gmail.com"
+
+BOOKS = [
+ dict(n=1, slug="pips-big-dig", src="/workspace/pipbook/pages", paid="yulzdr", sample="pips-big-dig-free-sample",
+  en="Pip's Big Dig", zh="皮皮的大挖掘", theme_en="teamwork", theme_zh="一起合作",
+  kw="teamwork story for kids",
+  sum_en="Pip the mole wants to dig the biggest hole… alone. Scratch, scratch, scoop! His paws get tired, and the hole is still small. A robin hops by, then a rabbit, but Pip says, “No! I can do it all by myself!” Will he let his friends help? A warm story about teamwork: the pages start cool and grey while Pip digs alone and turn golden when the friends dig together.",
+  sum_zh="皮皮想獨自挖一個最大的洞。可是一個人挖，真的比較好玩嗎？爪子累了，洞還是小小的。知更鳥和兔子來了，皮皮會讓朋友幫忙嗎？一個關於一起合作的溫暖故事。",
+  short_en="Pip the mole wants to dig the biggest hole all by himself. Is digging alone really more fun?",
+  short_zh="皮皮想獨自挖一個最大的洞，一個人挖真的比較好玩嗎？"),
+ dict(n=2, slug="pip-and-the-big-rain", src="/workspace/pipbook2/pages", paid="pip-big-rain", sample="pip-big-rain-free-sample",
+  en="Pip and the Big Rain", zh="皮皮和大雨天", theme_en="not giving up and solving problems together", theme_zh="不放棄、一起想辦法",
+  kw="rainy day picture book",
+  sum_en="Pitter, patter! After the big dig, a big rain comes. By morning the big hole is full of water, and Rabbit's burrow is flooded too. Pip sits in the mud and wants to give up. But Robin says, “Don't worry. Let's think together.” Then Pip watches a raindrop slide down a leaf… and has an idea. A gentle story about what to do when things go wrong: don't give up, think it through with your friends, and a bad day can turn into something new and good.",
+  sum_zh="皮皮和朋友們的大洞被大雨灌滿了水，兔子的窩也進水了。皮皮想放棄，可是大家一起想辦法，壞事也能變成新的好事！",
+  short_en="A big rain floods the hole and Rabbit's burrow. Pip wants to give up, until the friends think together.",
+  short_zh="大雨把大洞灌滿了水，皮皮和朋友們一起想辦法。"),
+ dict(n=3, slug="pip-and-the-night-lights", src="/workspace/pipbook3/pages", paid="pip-night-lights", sample="pip-night-lights-free-sample",
+  en="Pip and the Night Lights", zh="皮皮和螢火蟲", theme_en="being brave in the dark, together", theme_zh="有朋友在身邊，不怕黑",
+  kw="bedtime story scared of the dark",
+  sum_en="The big hole is a little pond now, and Pip, Robin and Rabbit meet there to watch the stars. But when the sky gets dark, Rabbit's ears start to shake: “It's so dark! I'm scared.” Pip lives under the ground and isn't afraid of the dark at all. His secret? Close your eyes and listen. Ribbit, ribbit… chirp, chirp… A calm wind-down story about being brave together. It ends with the three friends snuggling up and saying goodnight.",
+  sum_zh="天黑了，兔子好害怕。皮皮教大家閉上眼睛靜靜地聽，知更鳥輕輕地唱。原來有朋友在身邊，黑黑的夜晚也很美。",
+  short_en="Night falls by the pond and Rabbit is scared of the dark. A calm bedtime story about being brave together.",
+  short_zh="天黑了，兔子好害怕。有朋友在身邊，黑黑的夜晚也很美。"),
+ dict(n=4, slug="pip-and-the-autumn-leaves", src="/workspace/pipbook4/pages", paid="pip-autumn-leaves", sample="pip-autumn-leaves-free-sample",
+  en="Pip and the Autumn Leaves", zh="皮皮和落葉", theme_en="sharing", theme_zh="分享",
+  kw="autumn picture book, sharing story for kids",
+  sum_en="Flutter, flutter! Summer is over and the leaves on the hill turn orange, red and brown. Winter is coming, so Pip wants a warm leaf bed. Scratch, scratch, scoop! Pip's pile grows higher and higher, taller than Pip! But Robin's beak is small, and Robin can carry only one leaf at a time. As the sun goes down, Robin's nest is still cold… A gentle story about sharing with friends: Pip finds out that sharing makes everyone warm, Pip included.",
+  sum_zh="皮皮堆了一大堆落葉，全都想留給自己。可是知更鳥的小窩還是冷冰冰的……皮皮決定分享，才發現分享讓大家都暖暖的、好開心！",
+  short_en="Pip piles up autumn leaves for a warm winter bed. Will he share with Robin?",
+  short_zh="皮皮堆了一大堆落葉，會分享給知更鳥嗎？"),
+ dict(n=5, slug="pip-and-the-windy-day", src="/workspace/pipbook5/pages", paid="pip-windy-day", sample="pip-windy-day-free-sample",
+  en="Pip and the Windy Day", zh="皮皮和大風天", theme_en="saying sorry and fixing things together", theme_zh="說對不起、一起修好",
+  kw="saying sorry story for kids",
+  sum_en="Whoo, whoo! Autumn is almost over and the wind is so strong today. Rabbit builds a leaf house from sticks and fallen leaves. Pip wants to see it too, so he digs a tunnel to get there faster… and pops up right under the leaf house. Down it tumbles! Pip quickly says, “The wind did it!”, but he feels a little stone inside. A gentle story about telling the truth, saying sorry and fixing things together.",
+  sum_zh="兔子搭了一間葉子屋，卻被急急忙忙挖地道的皮皮弄倒了。皮皮先說「是大風吹的！」，心裡卻好不舒服……皮皮說了對不起，大家一起搭出更堅固的葉子屋！",
+  short_en="Pip pops up under Rabbit's leaf house and knocks it down. A story about saying sorry and fixing it together.",
+  short_zh="皮皮不小心弄倒了兔子的葉子屋，說聲對不起，再一起修好。"),
+ dict(n=6, slug="pip-and-the-first-snow", src="/workspace/pipbook6/pages", paid="pip-first-snow", sample="pip-first-snow-free-sample",
+  en="Pip and the First Snow", zh="皮皮和第一場雪", theme_en="caring for others", theme_zh="關心別人",
+  kw="winter picture book, kindness story for kids",
+  sum_en="Squeak, squeak! Winter is here, and Pip runs out of his underground room: “The first snow!” The three friends play on the white hill, until Robin spots some tiny footprints. Whose are they? The footprints lead to a low bush by the pond, and under it a little round ball is shivering. It's a baby hedgehog named Pom, who can't find the way home. A gentle story about caring for others: Rabbit holds Pom close, Pip digs a path to his warm underground room, and Robin brings soft moss and sweet red berries.",
+  sum_zh="冬天的第一場雪，皮皮、兔子和知更鳥跟著小小的腳印，找到了在樹叢下發抖的刺蝟寶寶蓬蓬。皮皮挖小路，兔子抱一抱，知更鳥找青苔，大家一起照顧蓬蓬。",
+  short_en="Tiny footprints in the first snow lead the friends to a shivering baby hedgehog named Pom.",
+  short_zh="第一場雪，小小的腳印通到樹叢下，找到了發抖的刺蝟寶寶蓬蓬。"),
+]
+
+E = html.escape
+
+def make_images(b):
+    out = ROOT / "img" / b["slug"]
+    out.mkdir(parents=True, exist_ok=True)
+    src = Path(b["src"])
+    cover = Image.open(src / "page-01.png").convert("RGB")
+    cover.resize((600, 800), Image.LANCZOS).save(out / "cover.webp", "WEBP", quality=80, method=6)
+    cover.resize((360, 480), Image.LANCZOS).save(out / "cover-sm.webp", "WEBP", quality=78, method=6)
+    # Open Graph image 1200x630: cover centred on a blurred copy of itself
+    bg = cover.resize((1200, 1600), Image.LANCZOS).crop((0, 485, 1200, 1115)).filter(ImageFilter.GaussianBlur(28))
+    fg = cover.resize((472, 630), Image.LANCZOS)
+    bg.paste(fg, ((1200 - 472) // 2, 0))
+    bg.save(out / "og.jpg", "JPEG", quality=82, optimize=True, progressive=True)
+    # Preview: story pages 1-4 (all inside the free sample: cover + first 5 story pages)
+    for i, p in enumerate([2, 3, 4, 5], 1):
+        Image.open(src / f"page-{p:02d}.png").convert("RGB").resize((720, 960), Image.LANCZOS).save(out / f"page-{i}.webp", "WEBP", quality=78, method=6)
+
+CSS = """
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;color:#3b2f24;background:#fbf6ec;line-height:1.6}
+a{color:#8a4b12}
+header,main,footer{max-width:960px;margin:0 auto;padding:0 18px}
+header{padding-top:18px;padding-bottom:6px}
+header .brand{font-weight:700;font-size:1.1rem;text-decoration:none;color:#5a3d22}
+h1{font-size:1.7rem;line-height:1.25;margin:.6em 0 .2em}h1 .zh{display:block;font-size:1.35rem;color:#6d4c2e}
+h2{font-size:1.2rem;margin:1.6em 0 .5em}
+.lead{font-size:1.02rem;margin:.3em 0 1em}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;margin:18px 0 28px}
+.card{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(80,50,20,.12);overflow:hidden;display:flex;flex-direction:column}
+.card a.cov{display:block;background:#efe6d4}.card img{width:100%;height:auto;display:block;aspect-ratio:3/4}
+.card .body{padding:12px 14px 16px;flex:1;display:flex;flex-direction:column}
+.card h3{margin:0 0 .3em;font-size:1.05rem;line-height:1.3}.card h3 a{text-decoration:none;color:#3b2f24}
+.card p{margin:.2em 0;font-size:.93rem}.card .more{margin-top:auto;padding-top:8px;font-weight:600}
+.tag{display:inline-block;font-size:.78rem;background:#f2e3c6;border-radius:99px;padding:1px 9px;margin:0 4px 4px 0}
+.book{display:grid;grid-template-columns:minmax(0,300px) 1fr;gap:24px;align-items:start;margin-top:10px}
+.book .cover img{width:100%;height:auto;border-radius:10px;box-shadow:0 2px 10px rgba(80,50,20,.2);aspect-ratio:3/4}
+dl.facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.95rem;margin:12px 0}dl.facts dt{font-weight:600}dl.facts dd{margin:0}
+.pages{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.pages img{width:100%;height:auto;border-radius:8px;box-shadow:0 1px 5px rgba(80,50,20,.15);aspect-ratio:3/4;background:#efe6d4}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 8px}
+.btn{display:inline-block;padding:13px 20px;border-radius:12px;font-weight:700;text-decoration:none;text-align:center;flex:1 1 240px}
+.btn small{display:block;font-weight:500}
+.btn.free{background:#fff;border:2px solid #b8641c;color:#8a4b12}.btn.buy{background:#b8641c;color:#fff;border:2px solid #b8641c}
+.note{font-size:.85rem;color:#6b5a48}
+footer{border-top:1px solid #e6d8bf;margin-top:36px;padding-top:14px;padding-bottom:30px;font-size:.88rem;color:#6b5a48}
+@media (max-width:640px){.book{grid-template-columns:1fr}.book .cover{max-width:280px}.pages{grid-template-columns:repeat(2,1fr)}h1{font-size:1.45rem}}
+"""
+
+def head(title, desc, kw, url, img, ogtype="website"):
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{E(title)}</title>
+<meta name="description" content="{E(desc)}">
+<meta name="keywords" content="{E(kw)}">
+<link rel="canonical" href="{url}">
+<meta property="og:type" content="{ogtype}">
+<meta property="og:site_name" content="Pip the Mole Books 皮皮繪本">
+<meta property="og:title" content="{E(title)}">
+<meta property="og:description" content="{E(desc)}">
+<meta property="og:url" content="{url}">
+<meta property="og:image" content="{img}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="zh_HK">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{E(title)}">
+<meta name="twitter:description" content="{E(desc)}">
+<meta name="twitter:image" content="{img}">
+<style>{CSS}</style>
+</head>
+<body>
+<header><a class="brand" href="{SITE}/">Pip the Mole Books · <span lang="zh-Hant">皮皮繪本</span></a></header>
+"""
+
+FOOT = f"""<footer>
+<p><strong>About · <span lang="zh-Hant">關於</span>:</strong> Stories written by PP O in Hong Kong. Illustrations are AI-generated. <span lang="zh-Hant">故事由香港的 PP O 創作，插圖由 AI 生成。</span></p>
+<p>Books are sold as PDF ebooks on Gumroad (Gumroad handles checkout). <span lang="zh-Hant">電子書（PDF）經 Gumroad 發售。</span></p>
+<p>Contact · <span lang="zh-Hant">聯絡</span>: <a href="mailto:{EMAIL}">{EMAIL}</a></p>
+</footer>
+</body>
+</html>
+"""
+
+BASE_KW = "children's picture book, bilingual Chinese English picture book, Traditional Chinese, 中英雙語繪本, bedtime story, toddler, preschool, ages 3-6, read aloud, PDF ebook, Pip the mole"
+
+def book_page(b):
+    url = f"{SITE}/{b['slug']}/"
+    img = f"{SITE}/img/{b['slug']}/og.jpg"
+    title = f"{b['en']} {b['zh']} · Bilingual Chinese English Picture Book, Ages 3–6"
+    desc = (f"Book {b['n']} of Pip the mole's stories: a bilingual English + Traditional Chinese children's picture book "
+            f"(PDF) about {b['theme_en']}, for toddlers and preschoolers aged 3–6. {b['short_en']} Free sample available.")
+    kw = f"{b['en']}, {b['zh']}, {b['kw']}, " + BASE_KW
+    pages = "\n".join(
+        f'<img src="../img/{b["slug"]}/page-{i}.webp" width="720" height="960" loading="lazy" decoding="async" '
+        f'alt="{E(b["en"])}, story page {i}: illustration with Traditional Chinese and English text">' for i in range(1, 5))
+    others = [o for o in sorted(BOOKS, key=lambda x: -x["n"]) if o is not b]
+    more = " · ".join(f'<a href="../{o["slug"]}/">{E(o["en"])} <span lang="zh-Hant">{o["zh"]}</span></a>' for o in others)
+    s = head(title, desc, kw, url, img, "book")
+    s += f"""<main>
+<div class="book">
+<div class="cover"><img src="../img/{b['slug']}/cover.webp" width="600" height="800" alt="Cover of {E(b['en'])} / {b['zh']}: Pip the mole and friends"></div>
+<div>
+<p class="note">Book {b['n']} · <span lang="zh-Hant">第{"一二三四五六"[b['n']-1]}集</span></p>
+<h1>{E(b['en'])}<span class="zh" lang="zh-Hant">{b['zh']}</span></h1>
+<p class="lead">{E(b['sum_en'])}</p>
+<p class="lead" lang="zh-Hant">{b['sum_zh']}</p>
+<dl class="facts">
+<dt>Ages · <span lang="zh-Hant">年齡</span></dt><dd>3–6 · <span lang="zh-Hant">適合 3–6 歲</span></dd>
+<dt>Language · <span lang="zh-Hant">語言</span></dt><dd>English + Traditional Chinese on every page · <span lang="zh-Hant">每頁中英對照（繁體中文）</span></dd>
+<dt>Theme · <span lang="zh-Hant">主題</span></dt><dd>{E(b['theme_en'].capitalize())} · <span lang="zh-Hant">{b['theme_zh']}</span></dd>
+<dt>Format · <span lang="zh-Hant">格式</span></dt><dd>PDF ebook, 19 pages (cover, 16 story pages, a read-aloud refrain page, back cover); screen and print-ready 300 dpi versions · <span lang="zh-Hant">PDF 電子書，共 19 頁</span></dd>
+<dt>Story · <span lang="zh-Hant">故事</span></dt><dd>PP O (Hong Kong); illustrations AI-generated · <span lang="zh-Hant">插圖由 AI 生成</span></dd>
+</dl>
+</div>
+</div>
+<h2>Look inside · <span lang="zh-Hant">內頁預覽</span></h2>
+<div class="pages">
+{pages}
+</div>
+<p class="note">The free sample has the cover and the first 5 story pages. Book {b['n']} also reads fine on its own. <span lang="zh-Hant">免費試讀版包括封面和故事的頭 5 頁。</span></p>
+<div class="cta">
+<a class="btn free" href="{GR}{b['sample']}{UTM}">Read the free sample<small lang="zh-Hant">免費試讀</small></a>
+<a class="btn buy" href="{GR}{b['paid']}{UTM}">Get the full book US$4.99<small lang="zh-Hant">購買完整版 US$4.99</small></a>
+</div>
+<h2>More Pip books · <span lang="zh-Hant">更多皮皮繪本</span></h2>
+<p>{more}</p>
+<p><a href="../">← All books · <span lang="zh-Hant">所有繪本</span></a></p>
+</main>
+"""
+    return s + FOOT
+
+def index_page():
+    title = "Pip the Mole Books 皮皮繪本 · Bilingual Chinese English Picture Books for Ages 3–6"
+    desc = ("Six short bilingual children's picture books (English + Traditional Chinese on every page) about Pip the mole and friends, "
+            "for toddlers and preschoolers aged 3–6. Gentle bedtime stories about teamwork, sharing and kindness. Free samples of every book.")
+    cards = []
+    for b in sorted(BOOKS, key=lambda x: -x["n"]):
+        cards.append(f"""<article class="card">
+<a class="cov" href="{b['slug']}/"><img src="img/{b['slug']}/cover-sm.webp" width="360" height="480" loading="lazy" decoding="async" alt="Cover of {E(b['en'])} / {b['zh']}"></a>
+<div class="body">
+<h3><a href="{b['slug']}/">{E(b['en'])}<br><span lang="zh-Hant">{b['zh']}</span></a></h3>
+<p><span class="tag">Book {b['n']}</span><span class="tag">Ages 3–6</span><span class="tag">EN + <span lang="zh-Hant">繁中</span></span></p>
+<p>{E(b['short_en'])}</p>
+<p lang="zh-Hant">{b['short_zh']}</p>
+<a class="more" href="{b['slug']}/">Look inside · <span lang="zh-Hant">看看內頁</span> →</a>
+</div>
+</article>""")
+    s = head(title, desc, BASE_KW + ", teamwork, sharing, kindness", f"{SITE}/", f"{SITE}/img/{BOOKS[-1]['slug']}/og.jpg")
+    s += f"""<main>
+<h1>Pip the Mole picture books<span class="zh" lang="zh-Hant">皮皮小鼴鼠雙語繪本</span></h1>
+<p class="lead">Short picture books for ages 3–6 with English and Traditional Chinese together on every page. Pip the mole, Robin and Rabbit learn small, gentle things: working together, not giving up, being brave in the dark, sharing, saying sorry and caring for others. Each book reads fine on its own, and each has a free sample.</p>
+<p class="lead" lang="zh-Hant">適合 3–6 歲的短篇繪本，每頁都有英文和繁體中文。小鼴鼠皮皮、知更鳥和兔子一起學習合作、不放棄、不怕黑、分享、說對不起和關心別人。每本都可以單獨閱讀，每本都有免費試讀。</p>
+<h2>All books, newest first · <span lang="zh-Hant">全部繪本（最新在前）</span></h2>
+<div class="grid">
+{chr(10).join(cards)}
+</div>
+</main>
+"""
+    return s + FOOT
+
+def main():
+    for b in BOOKS:
+        if not (ROOT / "img" / b["slug"] / "page-4.webp").exists() or os.environ.get("REIMG"):
+            make_images(b)
+        d = ROOT / b["slug"]; d.mkdir(exist_ok=True)
+        (d / "index.html").write_text(book_page(b), encoding="utf-8")
+    (ROOT / "index.html").write_text(index_page(), encoding="utf-8")
+    urls = [f"{SITE}/"] + [f"{SITE}/{b['slug']}/" for b in sorted(BOOKS, key=lambda x: -x["n"])]
+    (ROOT / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "".join(f"  <url><loc>{u}</loc><lastmod>2026-09-26</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
+    (ROOT / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n", encoding="utf-8")
+    (ROOT / ".nojekyll").write_text("")
+    json.dump([{k: b[k] for k in ("n", "slug", "en", "zh", "paid", "sample")} for b in BOOKS], open(ROOT / "books.json", "w"), ensure_ascii=False, indent=1)
+
+if __name__ == "__main__":
+    main()
