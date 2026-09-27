@@ -109,6 +109,7 @@ dl.facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.95r
 .note{font-size:.85rem;color:#6b5a48}
 footer{border-top:1px solid #e6d8bf;margin-top:36px;padding-top:14px;padding-bottom:30px;font-size:.88rem;color:#6b5a48}
 @media (max-width:640px){.book{grid-template-columns:1fr}.book .cover{max-width:280px}.pages{grid-template-columns:repeat(2,1fr)}h1{font-size:1.45rem}}
+@media (max-width:600px){.book{grid-template-columns:minmax(0,38%) minmax(0,1fr);gap:12px;align-items:start}.book .cover{max-width:none}.cta.top{margin:8px 0 4px;gap:8px}.cta.top .btn{flex:1 1 100%;min-width:0;padding:10px 8px}}
 """
 
 def head(title, desc, kw, url, img, ogtype="website"):
@@ -189,13 +190,13 @@ def book_page(b):
 <div>
 <p class="note">Book {b['n']} · <span lang="zh-Hant">第{"一二三四五六"[b['n']-1]}集</span></p>
 <h1>{E(b['en'])}<span class="zh" lang="zh-Hant">{b['zh']}</span></h1>
-<p class="lead">{E(b['sum_en'])}</p>
-<p class="lead" lang="zh-Hant">{b['sum_zh']}</p>
 <div class="cta top">
 <a class="btn free" href="{GR}{b['sample']}{UTM}">Read the free sample<small lang="zh-Hant">免費試讀（封面＋頭 5 頁）</small></a>
 <a class="btn buy" href="{GR}{b['paid']}{UTM}">Get the full book US$4.99<small lang="zh-Hant">購買完整版 US$4.99</small></a>
 </div>
 { "<!-- BUNDLE_UPSELL: pending bundle URL -->" if BUNDLE is None else "" }
+<p class="lead">{E(b['sum_en'])}</p>
+<p class="lead" lang="zh-Hant">{b['sum_zh']}</p>
 <dl class="facts">
 <dt>Ages · <span lang="zh-Hant">年齡</span></dt><dd>3–6 · <span lang="zh-Hant">適合 3–6 歲</span></dd>
 <dt>Language · <span lang="zh-Hant">語言</span></dt><dd>English + Traditional Chinese on every page · <span lang="zh-Hant">每頁中英對照（繁體中文）</span></dd>
