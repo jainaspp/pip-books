@@ -8,6 +8,8 @@ ROOT = Path(__file__).parent
 SITE = "https://jainaspp.github.io/pip-books"
 GR = "https://jainaspark4.gumroad.com/l/"
 UTM = "?utm_source=pipsite"
+# All 6 books, US$9.99 minimum (pay what you want). 6 × US$4.99 = US$29.94 separately.
+BUNDLE = "https://jainaspark4.gumroad.com/l/imzzp"
 EMAIL = "jainaspp@gmail.com"
 
 BOOKS = [
@@ -96,15 +98,25 @@ dl.facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.95r
 .pages{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .pages img{width:100%;height:auto;border-radius:8px;box-shadow:0 1px 5px rgba(80,50,20,.15);aspect-ratio:3/4;background:#efe6d4}
 .cta{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 8px}
+.cta.hero{margin:14px 0 6px}
+.cta.hero .btn{flex:1 1 220px;min-width:min(100%,220px)}
+.bundlebox{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(80,50,20,.12);padding:14px 18px 18px;margin:18px 0}
 .btn{display:inline-block;padding:13px 20px;border-radius:12px;font-weight:700;text-decoration:none;text-align:center;flex:1 1 240px}
 .btn small{display:block;font-weight:500}
 .btn.free{background:#fff;border:2px solid #b8641c;color:#8a4b12}.btn.buy{background:#b8641c;color:#fff;border:2px solid #b8641c}
+.btn.sm{flex:1 1 0;padding:9px 10px;font-size:.92rem}
+.cardbtns{display:flex;gap:8px;margin-top:10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-block;padding:8px 12px;border:2px solid #b8641c;border-radius:99px;text-decoration:none;font-weight:600;font-size:.92rem;background:#fff}
 .note{font-size:.85rem;color:#6b5a48}
 footer{border-top:1px solid #e6d8bf;margin-top:36px;padding-top:14px;padding-bottom:30px;font-size:.88rem;color:#6b5a48}
 @media (max-width:640px){.book{grid-template-columns:1fr}.book .cover{max-width:280px}.pages{grid-template-columns:repeat(2,1fr)}h1{font-size:1.45rem}}
+@media (max-width:600px){.book{grid-template-columns:minmax(0,38%) minmax(0,1fr);gap:12px;align-items:start}.book .cover{max-width:none}.cta.top{margin:8px 0 4px;gap:8px}.cta.top .btn{flex:1 1 100%;min-width:0;padding:10px 8px}}
 """
 
-def head(title, desc, kw, url, img, ogtype="website"):
+def head(title, desc, kw, url, img, ogtype="website", ogtitle=None):
+    if ogtitle is None:
+        ogtitle = title
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -116,7 +128,7 @@ def head(title, desc, kw, url, img, ogtype="website"):
 <link rel="canonical" href="{url}">
 <meta property="og:type" content="{ogtype}">
 <meta property="og:site_name" content="Pip the Mole Books 皮皮繪本">
-<meta property="og:title" content="{E(title)}">
+<meta property="og:title" content="{E(ogtitle)}">
 <meta property="og:description" content="{E(desc)}">
 <meta property="og:url" content="{url}">
 <meta property="og:image" content="{img}">
@@ -139,6 +151,24 @@ FOOT = f"""<footer>
 <p>Books are sold as PDF ebooks on Gumroad (Gumroad handles checkout). <span lang="zh-Hant">電子書（PDF）經 Gumroad 發售。</span></p>
 <p>Contact · <span lang="zh-Hant">聯絡</span>: <a href="mailto:{EMAIL}">{EMAIL}</a></p>
 </footer>
+<script>
+(function(){{
+  var K=["utm_source","utm_medium","utm_campaign","utm_content","utm_term"], got={{}}, has=false;
+  var q=new URLSearchParams(location.search);
+  K.forEach(function(k){{var v=q.get(k); if(v){{got[k]=v.slice(0,100); has=true;}}}});
+  try{{
+    if(has) sessionStorage.setItem("pip_utm", JSON.stringify(got));
+    else got=JSON.parse(sessionStorage.getItem("pip_utm")||"{{}}");
+  }}catch(e){{}}
+  if(!Object.keys(got).length) return;
+  document.querySelectorAll('a[href*="gumroad.com/"]').forEach(function(a){{
+    var u=new URL(a.href);
+    K.forEach(function(k){{u.searchParams.delete(k);}});
+    K.forEach(function(k){{if(got[k]) u.searchParams.set(k, got[k]);}});
+    a.href=u.toString();
+  }});
+}})();
+</script>
 </body>
 </html>
 """
@@ -157,6 +187,8 @@ def book_page(b):
         f'alt="{E(b["en"])}, story page {i}: illustration with Traditional Chinese and English text">' for i in range(1, 5))
     others = [o for o in sorted(BOOKS, key=lambda x: -x["n"]) if o is not b]
     more = " · ".join(f'<a href="../{o["slug"]}/">{E(o["en"])} <span lang="zh-Hant">{o["zh"]}</span></a>' for o in others)
+    upsell = (f'<p class="upsell">Want all six? <a href="{BUNDLE}{UTM}">Get the Pip bundle, all 6 books for US$9.99</a> '
+              f'· <span lang="zh-Hant">想要全套？<a href="{BUNDLE}{UTM}">皮皮全套 6 本 US$9.99</a></span></p>')
     s = head(title, desc, kw, url, img, "book")
     s += f"""<main>
 <div class="book">
@@ -164,6 +196,11 @@ def book_page(b):
 <div>
 <p class="note">Book {b['n']} · <span lang="zh-Hant">第{"一二三四五六"[b['n']-1]}集</span></p>
 <h1>{E(b['en'])}<span class="zh" lang="zh-Hant">{b['zh']}</span></h1>
+<div class="cta top">
+<a class="btn free" href="{GR}{b['sample']}{UTM}">Read the free sample<small lang="zh-Hant">免費試讀（封面＋頭 5 頁）</small></a>
+<a class="btn buy" href="{GR}{b['paid']}{UTM}">Get the full book US$4.99<small lang="zh-Hant">購買完整版 US$4.99</small></a>
+</div>
+{upsell}
 <p class="lead">{E(b['sum_en'])}</p>
 <p class="lead" lang="zh-Hant">{b['sum_zh']}</p>
 <dl class="facts">
@@ -184,6 +221,7 @@ def book_page(b):
 <a class="btn free" href="{GR}{b['sample']}{UTM}">Read the free sample<small lang="zh-Hant">免費試讀</small></a>
 <a class="btn buy" href="{GR}{b['paid']}{UTM}">Get the full book US$4.99<small lang="zh-Hant">購買完整版 US$4.99</small></a>
 </div>
+{upsell}
 <h2>More Pip books · <span lang="zh-Hant">更多皮皮繪本</span></h2>
 <p>{more}</p>
 <p><a href="../">← All books · <span lang="zh-Hant">所有繪本</span></a></p>
@@ -192,9 +230,13 @@ def book_page(b):
     return s + FOOT
 
 def index_page():
-    title = "Pip the Mole Books 皮皮繪本 · Bilingual Chinese English Picture Books for Ages 3–6"
-    desc = ("Six short bilingual children's picture books (English + Traditional Chinese on every page) about Pip the mole and friends, "
-            "for toddlers and preschoolers aged 3–6. Gentle bedtime stories about teamwork, sharing and kindness. Free samples of every book.")
+    title = "Pip the Mole 皮皮繪本 · Bilingual Chinese English Picture Books, Ages 3–6 · Free Samples & 6-Book Bundle"
+    ogtitle = "Pip the Mole 皮皮繪本 · 6 bilingual picture books · free samples + bundle"
+    desc = ("Six bilingual picture books for kids aged 3–6, English + Traditional Chinese on every page. "
+            "Read a free sample of any book, or get all 6 in one bundle. 中英對照雙語繪本：每本免費試讀，或者一次過買全套 6 本。")
+    samples = " ".join(
+        f'<a class="chip" href="{GR}{b["sample"]}{UTM}">{E(b["en"])} <span lang="zh-Hant">{b["zh"]}</span></a>'
+        for b in sorted(BOOKS, key=lambda x: x["n"]))
     cards = []
     for b in sorted(BOOKS, key=lambda x: -x["n"]):
         cards.append(f"""<article class="card">
@@ -205,13 +247,31 @@ def index_page():
 <p>{E(b['short_en'])}</p>
 <p lang="zh-Hant">{b['short_zh']}</p>
 <a class="more" href="{b['slug']}/">Look inside · <span lang="zh-Hant">看看內頁</span> →</a>
+<div class="cardbtns">
+<a class="btn free sm" href="{GR}{b['sample']}{UTM}">Free sample<small lang="zh-Hant">免費試讀</small></a>
+<a class="btn buy sm" href="{GR}{b['paid']}{UTM}">US$4.99<small lang="zh-Hant">購買</small></a>
+</div>
 </div>
 </article>""")
-    s = head(title, desc, BASE_KW + ", teamwork, sharing, kindness", f"{SITE}/", f"{SITE}/img/{BOOKS[-1]['slug']}/og.jpg")
+    s = head(title, desc, BASE_KW + ", teamwork, sharing, kindness", f"{SITE}/", f"{SITE}/img/{BOOKS[-1]['slug']}/og.jpg", ogtitle=ogtitle)
     s += f"""<main>
 <h1>Pip the Mole picture books<span class="zh" lang="zh-Hant">皮皮小鼴鼠雙語繪本</span></h1>
+<div class="cta hero">
+<a class="btn free" href="#free-samples">Read a free sample<small lang="zh-Hant">免費試讀</small></a>
+<a class="btn buy" href="{BUNDLE}{UTM}">All 6 books · US$9.99<small lang="zh-Hant">皮皮全套 6 本 US$9.99</small></a>
+</div>
 <p class="lead">Short picture books for ages 3–6 with English and Traditional Chinese together on every page. Pip the mole, Robin and Rabbit learn small, gentle things: working together, not giving up, being brave in the dark, sharing, saying sorry and caring for others. Each book reads fine on its own, and each has a free sample.</p>
 <p class="lead" lang="zh-Hant">適合 3–6 歲的短篇繪本，每頁都有英文和繁體中文。小鼴鼠皮皮、知更鳥和兔子一起學習合作、不放棄、不怕黑、分享、說對不起和關心別人。每本都可以單獨閱讀，每本都有免費試讀。</p>
+<section id="free-samples">
+<h2>Start with a free sample · <span lang="zh-Hant">先免費試讀</span></h2>
+<p>Every book has a free PDF sample: the cover and the first 5 story pages. Pick one and read it together tonight. <span lang="zh-Hant">每本都有免費試讀（PDF）：封面和故事的頭 5 頁。揀一本，今晚一起讀。</span></p>
+<p class="chips">{samples}</p>
+</section>
+<section id="bundle" class="bundlebox">
+<h2>All 6 Pip books in one bundle · <span lang="zh-Hant">皮皮全套 6 本</span></h2>
+<p>Teamwork, not giving up, being brave in the dark, sharing, saying sorry and caring for others: all six stories as PDF ebooks for US$9.99 (pay what you want), instead of 6 × US$4.99 = US$29.94 one by one. <span lang="zh-Hant">合作、不放棄、不怕黑、分享、說對不起、關心別人，六個故事一次過：全套 PDF 電子書 US$9.99（可以自訂價錢），逐本買要 6 × US$4.99 = US$29.94。</span></p>
+<a class="btn buy" href="{BUNDLE}{UTM}">Get all 6 books · US$9.99<small lang="zh-Hant">購買全套 6 本 US$9.99</small></a>
+</section>
 <h2>All books, newest first · <span lang="zh-Hant">全部繪本（最新在前）</span></h2>
 <div class="grid">
 {chr(10).join(cards)}
