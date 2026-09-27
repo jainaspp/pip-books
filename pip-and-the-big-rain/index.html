@@ -44,9 +44,14 @@ dl.facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.95r
 .pages{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .pages img{width:100%;height:auto;border-radius:8px;box-shadow:0 1px 5px rgba(80,50,20,.15);aspect-ratio:3/4;background:#efe6d4}
 .cta{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 8px}
+.cta.hero{margin:14px 0 6px}
 .btn{display:inline-block;padding:13px 20px;border-radius:12px;font-weight:700;text-decoration:none;text-align:center;flex:1 1 240px}
 .btn small{display:block;font-weight:500}
 .btn.free{background:#fff;border:2px solid #b8641c;color:#8a4b12}.btn.buy{background:#b8641c;color:#fff;border:2px solid #b8641c}
+.btn.sm{flex:1 1 0;padding:9px 10px;font-size:.92rem}
+.cardbtns{display:flex;gap:8px;margin-top:10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-block;padding:8px 12px;border:2px solid #b8641c;border-radius:99px;text-decoration:none;font-weight:600;font-size:.92rem;background:#fff}
 .note{font-size:.85rem;color:#6b5a48}
 footer{border-top:1px solid #e6d8bf;margin-top:36px;padding-top:14px;padding-bottom:30px;font-size:.88rem;color:#6b5a48}
 @media (max-width:640px){.book{grid-template-columns:1fr}.book .cover{max-width:280px}.pages{grid-template-columns:repeat(2,1fr)}h1{font-size:1.45rem}}
@@ -62,6 +67,11 @@ footer{border-top:1px solid #e6d8bf;margin-top:36px;padding-top:14px;padding-bot
 <h1>Pip and the Big Rain<span class="zh" lang="zh-Hant">皮皮和大雨天</span></h1>
 <p class="lead">Pitter, patter! After the big dig, a big rain comes. By morning the big hole is full of water, and Rabbit&#x27;s burrow is flooded too. Pip sits in the mud and wants to give up. But Robin says, “Don&#x27;t worry. Let&#x27;s think together.” Then Pip watches a raindrop slide down a leaf… and has an idea. A gentle story about what to do when things go wrong: don&#x27;t give up, think it through with your friends, and a bad day can turn into something new and good.</p>
 <p class="lead" lang="zh-Hant">皮皮和朋友們的大洞被大雨灌滿了水，兔子的窩也進水了。皮皮想放棄，可是大家一起想辦法，壞事也能變成新的好事！</p>
+<div class="cta top">
+<a class="btn free" href="https://jainaspark4.gumroad.com/l/pip-big-rain-free-sample?utm_source=pipsite">Read the free sample<small lang="zh-Hant">免費試讀（封面＋頭 5 頁）</small></a>
+<a class="btn buy" href="https://jainaspark4.gumroad.com/l/pip-big-rain?utm_source=pipsite">Get the full book US$4.99<small lang="zh-Hant">購買完整版 US$4.99</small></a>
+</div>
+<!-- BUNDLE_UPSELL: pending bundle URL -->
 <dl class="facts">
 <dt>Ages · <span lang="zh-Hant">年齡</span></dt><dd>3–6 · <span lang="zh-Hant">適合 3–6 歲</span></dd>
 <dt>Language · <span lang="zh-Hant">語言</span></dt><dd>English + Traditional Chinese on every page · <span lang="zh-Hant">每頁中英對照（繁體中文）</span></dd>
@@ -92,5 +102,23 @@ footer{border-top:1px solid #e6d8bf;margin-top:36px;padding-top:14px;padding-bot
 <p>Books are sold as PDF ebooks on Gumroad (Gumroad handles checkout). <span lang="zh-Hant">電子書（PDF）經 Gumroad 發售。</span></p>
 <p>Contact · <span lang="zh-Hant">聯絡</span>: <a href="mailto:jainaspp@gmail.com">jainaspp@gmail.com</a></p>
 </footer>
+<script>
+(function(){
+  var K=["utm_source","utm_medium","utm_campaign","utm_content","utm_term"], got={}, has=false;
+  var q=new URLSearchParams(location.search);
+  K.forEach(function(k){var v=q.get(k); if(v){got[k]=v.slice(0,100); has=true;}});
+  try{
+    if(has) sessionStorage.setItem("pip_utm", JSON.stringify(got));
+    else got=JSON.parse(sessionStorage.getItem("pip_utm")||"{}");
+  }catch(e){}
+  if(!Object.keys(got).length) return;
+  document.querySelectorAll('a[href*="gumroad.com/"]').forEach(function(a){
+    var u=new URL(a.href);
+    K.forEach(function(k){u.searchParams.delete(k);});
+    K.forEach(function(k){if(got[k]) u.searchParams.set(k, got[k]);});
+    a.href=u.toString();
+  });
+})();
+</script>
 </body>
 </html>
