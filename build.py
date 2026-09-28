@@ -229,14 +229,98 @@ def book_page(b):
 """
     return s + FOOT
 
+LP_CSS = """
+.hero{display:grid;grid-template-columns:1.1fr 1fr;gap:26px;align-items:center;margin:8px 0 10px}
+.hero h1{font-size:2rem;margin:.2em 0 .3em}.hero h1 .zh{font-size:1.45rem}
+.hero .kicker{display:inline-block;background:#f2e3c6;border-radius:99px;padding:3px 12px;font-size:.85rem;font-weight:600}
+.hero .price{font-size:.95rem;margin:.4em 0 0}
+.hero .price s{color:#8b7a66}
+.covers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.covers img{width:100%;height:auto;border-radius:8px;box-shadow:0 2px 8px rgba(80,50,20,.22);aspect-ratio:3/4;display:block}
+.covers img:nth-child(odd){transform:rotate(-2deg)}.covers img:nth-child(even){transform:rotate(2deg)}
+.why{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin:12px 0}
+.why div{background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(80,50,20,.12);padding:14px 16px}
+.why h3{margin:0 0 .3em;font-size:1rem}.why p{margin:.2em 0;font-size:.92rem}
+.themes{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(80,50,20,.12);font-size:.93rem}
+.themes td{padding:9px 12px;border-bottom:1px solid #f0e4cc;vertical-align:top}.themes tr:last-child td{border-bottom:0}
+.themes td:first-child{font-weight:700;white-space:nowrap;color:#8a4b12}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 14px}
+.compare div{border-radius:12px;padding:12px 14px;background:#fbf6ec;border:1px solid #ead9b9}
+.compare .best{border:2px solid #b8641c;background:#fff7ec}
+.compare b{display:block;font-size:1.35rem}
+details{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(80,50,20,.1);padding:10px 14px;margin:8px 0}
+summary{font-weight:700;cursor:pointer}details p{margin:.5em 0 .2em;font-size:.94rem}
+.sticky{position:fixed;left:0;right:0;bottom:0;background:#fffaf1;border-top:1px solid #e6d8bf;padding:8px 12px;display:none;gap:8px;z-index:9}
+.sticky .btn{padding:9px 8px;font-size:.92rem;flex:1 1 0}
+@media (max-width:720px){.hero{grid-template-columns:1fr}.hero h1{font-size:1.6rem}.covers{max-width:420px}.compare{grid-template-columns:1fr}
+ .sticky{display:flex}body.lp{padding-bottom:72px}}
+"""
+CSS += LP_CSS
+
+FAQ = [
+ ("How do I get the books after paying?", "付款後怎樣收到書？",
+  "Gumroad shows a download button right after checkout and also emails you the link. The files stay in your Gumroad library, so you can download them again later.",
+  "付款後 Gumroad 會即時顯示下載按鈕，同時把下載連結電郵給你。檔案會保留在你的 Gumroad 帳戶，之後可以再下載。"),
+ ("Can we read them on a phone or tablet? Can I print them?", "手機、平板可以看嗎？可以列印嗎？",
+  "Yes. They are PDF files, so they open on phones, tablets and computers. Each book also comes with a print-ready 300 dpi version for printing at home.",
+  "可以。全部是 PDF，手機、平板、電腦都能打開。每本還有 300 dpi 印刷版，可以在家列印。"),
+ ("Is the Chinese Traditional or Simplified?", "中文是繁體還是簡體？",
+  "Traditional Chinese, with the English text on the same page.",
+  "繁體中文，同一頁有英文對照。"),
+ ("What age is it for?", "適合多少歲？",
+  "Ages 3–6. The sentences are short and repeat, so they work for reading aloud at bedtime and for early readers.",
+  "3 至 6 歲。句子短、有重複，適合睡前唸給孩子聽，也適合剛開始認字的孩子。"),
+ ("Do the books need to be read in order?", "需要按順序讀嗎？",
+  "No. The six stories follow the same friends through the seasons, but each book reads fine on its own.",
+  "不用。六個故事是皮皮和好朋友們在不同季節的經歷，但每本都可以單獨閱讀。"),
+ ("How do I pay?", "怎樣付款？",
+  "Checkout is handled by Gumroad, which shows the payment options available to you. You can also pay more than US$9.99 if you want to support new books.",
+  "結帳由 Gumroad 處理，會顯示你可以使用的付款方法。如果想支持新書，可以自訂高於 US$9.99 的價錢。"),
+]
+
+def make_og_collage():
+    from PIL import ImageDraw, ImageFont
+    out = ROOT / "img" / "og-collage.jpg"
+    if out.exists() and not os.environ.get("REIMG"):
+        return
+    bg = Image.new("RGB", (1200, 630), (251, 246, 236))
+    w, h = 204, 272
+    for i, b in enumerate(sorted(BOOKS, key=lambda x: x["n"])):
+        c = Image.open(ROOT / "img" / b["slug"] / "cover.webp").convert("RGB").resize((w, h), Image.LANCZOS)
+        bg.paste(c, (36 + (i % 3) * (w + 14), 36 + (i // 3) * (h + 14)))
+    d = ImageDraw.Draw(bg)
+    fp = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"
+    f1 = ImageFont.truetype(fp, 50, index=2); f2 = ImageFont.truetype(fp, 30, index=2); f3 = ImageFont.truetype(fp, 34, index=2)
+    x = 730
+    d.text((x, 120), "Pip the Mole", font=f1, fill=(90, 61, 34))
+    d.text((x, 185), "皮皮繪本", font=f1, fill=(138, 75, 18))
+    d.text((x, 280), "6 bilingual picture books", font=f2, fill=(59, 47, 36))
+    d.text((x, 322), "中英對照 · Ages 3–6", font=f2, fill=(59, 47, 36))
+    d.rounded_rectangle((x, 400, x + 400, 470), radius=16, fill=(184, 100, 28))
+    d.text((x + 24, 412), "All 6 · US$9.99", font=f3, fill=(255, 255, 255))
+    bg.save(out, "JPEG", quality=84, optimize=True, progressive=True)
+
 def index_page():
     title = "Pip the Mole 皮皮繪本 · Bilingual Chinese English Picture Books, Ages 3–6 · Free Samples & 6-Book Bundle"
-    ogtitle = "Pip the Mole 皮皮繪本 · 6 bilingual picture books · free samples + bundle"
+    ogtitle = "Pip the Mole 皮皮繪本 · 6 bilingual picture books for ages 3–6 · all 6 for US$9.99"
     desc = ("Six bilingual picture books for kids aged 3–6, English + Traditional Chinese on every page. "
             "Read a free sample of any book, or get all 6 in one bundle. 中英對照雙語繪本：每本免費試讀，或者一次過買全套 6 本。")
+    order = sorted(BOOKS, key=lambda x: x["n"])
+    covers = "\n".join(
+        f'<img src="img/{b["slug"]}/cover-sm.webp" width="360" height="480" alt="Cover of {E(b["en"])} / {b["zh"]}"'
+        + (' fetchpriority="high"' if b["n"] <= 3 else ' loading="lazy"') + '>' for b in order)
+    themes = "\n".join(
+        f'<tr><td>Book {b["n"]}</td><td><a href="{b["slug"]}/">{E(b["en"])}</a> <span lang="zh-Hant">{b["zh"]}</span><br>'
+        f'{E(b["theme_en"].capitalize())} · <span lang="zh-Hant">{b["theme_zh"]}</span></td></tr>' for b in order)
     samples = " ".join(
-        f'<a class="chip" href="{GR}{b["sample"]}{UTM}">{E(b["en"])} <span lang="zh-Hant">{b["zh"]}</span></a>'
-        for b in sorted(BOOKS, key=lambda x: x["n"]))
+        f'<a class="chip" href="{GR}{b["sample"]}{UTM}">{E(b["en"])} <span lang="zh-Hant">{b["zh"]}</span></a>' for b in order)
+    peek = "img/pip-and-the-first-snow"
+    pages = "\n".join(
+        f'<img src="{peek}/page-{i}.webp" width="720" height="960" loading="lazy" decoding="async" '
+        f'alt="Pip and the First Snow, story page {i}: illustration with Traditional Chinese and English text">' for i in range(1, 5))
+    faq = "\n".join(
+        f'<details><summary>{E(q)} · <span lang="zh-Hant">{qz}</span></summary><p>{E(a)}</p><p lang="zh-Hant">{az}</p></details>'
+        for q, qz, a, az in FAQ)
     cards = []
     for b in sorted(BOOKS, key=lambda x: -x["n"]):
         cards.append(f"""<article class="card">
@@ -253,30 +337,86 @@ def index_page():
 </div>
 </div>
 </article>""")
-    s = head(title, desc, BASE_KW + ", teamwork, sharing, kindness", f"{SITE}/", f"{SITE}/img/{BOOKS[-1]['slug']}/og.jpg", ogtitle=ogtitle)
+    ld = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {"@type": "Product", "name": "Pip the Mole 6-Book Bundle 皮皮全套 6 本",
+             "description": "Six bilingual English + Traditional Chinese picture books (PDF) for ages 3–6.",
+             "image": f"{SITE}/img/og-collage.jpg", "brand": {"@type": "Brand", "name": "Pip the Mole Books"},
+             "offers": {"@type": "Offer", "price": "9.99", "priceCurrency": "USD", "availability": "https://schema.org/InStock", "url": BUNDLE}},
+            {"@type": "ItemList", "name": "Pip the Mole picture books",
+             "itemListElement": [{"@type": "ListItem", "position": b["n"], "url": f"{SITE}/{b['slug']}/", "name": b["en"]} for b in order]},
+            {"@type": "FAQPage", "mainEntity": [
+                {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, qz, a, az in FAQ]},
+        ]}
+    s = head(title, desc, BASE_KW + ", teamwork, sharing, kindness", f"{SITE}/", f"{SITE}/img/og-collage.jpg", ogtitle=ogtitle)
+    s = s.replace("<body>", '<body class="lp">', 1)
     s += f"""<main>
-<h1>Pip the Mole picture books<span class="zh" lang="zh-Hant">皮皮小鼴鼠雙語繪本</span></h1>
+<script type="application/ld+json">{json.dumps(ld, ensure_ascii=False)}</script>
+<section class="hero">
+<div>
+<span class="kicker">Ages 3–6 · EN + <span lang="zh-Hant">繁中</span></span>
+<h1>Gentle bedtime stories in English and Chinese<span class="zh" lang="zh-Hant">中英對照睡前繪本：小鼴鼠皮皮</span></h1>
+<p class="lead">Six short picture books about Pip the mole and his friends Robin and Rabbit. Every page has English and Traditional Chinese together, so you can read in either language, or both.</p>
+<p class="lead" lang="zh-Hant">六本關於小鼴鼠皮皮和知更鳥、兔子的短篇繪本。每頁都有英文和繁體中文，可以讀其中一種語言，也可以兩種一起讀。</p>
 <div class="cta hero">
-<a class="btn free" href="#free-samples">Read a free sample<small lang="zh-Hant">免費試讀</small></a>
-<a class="btn buy" href="{BUNDLE}{UTM}">All 6 books · US$9.99<small lang="zh-Hant">皮皮全套 6 本 US$9.99</small></a>
+<a class="btn buy" href="{BUNDLE}{UTM}">Get all 6 books · US$9.99<small lang="zh-Hant">購買全套 6 本 US$9.99</small></a>
+<a class="btn free" href="#free-samples">Read a free sample first<small lang="zh-Hant">先免費試讀</small></a>
 </div>
-<p class="lead">Short picture books for ages 3–6 with English and Traditional Chinese together on every page. Pip the mole, Robin and Rabbit learn small, gentle things: working together, not giving up, being brave in the dark, sharing, saying sorry and caring for others. Each book reads fine on its own, and each has a free sample.</p>
-<p class="lead" lang="zh-Hant">適合 3–6 歲的短篇繪本，每頁都有英文和繁體中文。小鼴鼠皮皮、知更鳥和兔子一起學習合作、不放棄、不怕黑、分享、說對不起和關心別人。每本都可以單獨閱讀，每本都有免費試讀。</p>
-<section id="free-samples">
-<h2>Start with a free sample · <span lang="zh-Hant">先免費試讀</span></h2>
-<p>Every book has a free PDF sample: the cover and the first 5 story pages. Pick one and read it together tonight. <span lang="zh-Hant">每本都有免費試讀（PDF）：封面和故事的頭 5 頁。揀一本，今晚一起讀。</span></p>
-<p class="chips">{samples}</p>
+<p class="price">Instant PDF download via Gumroad. One by one the six books cost <s>US$29.94</s>. <span lang="zh-Hant">經 Gumroad 即時下載 PDF；逐本買要 US$29.94。</span></p>
+</div>
+<div class="covers">
+{covers}
+</div>
 </section>
+
+<h2>Why parents pick Pip · <span lang="zh-Hant">為甚麼選皮皮</span></h2>
+<div class="why">
+<div><h3>Two languages, one page · <span lang="zh-Hant">同一頁中英對照</span></h3><p>English and Traditional Chinese side by side on every page.</p><p lang="zh-Hant">每頁英文和繁體中文並列，不用拿兩本書對照。</p></div>
+<div><h3>Short and calm · <span lang="zh-Hant">短而平靜</span></h3><p>16 story pages each, with short repeating lines and a read-aloud refrain page. Good for winding down at bedtime.</p><p lang="zh-Hant">每本 16 頁故事，句子短又有重複，還有一頁朗讀兒歌，很適合睡前。</p></div>
+<div><h3>One small lesson per book · <span lang="zh-Hant">每本一個小道理</span></h3><p>Teamwork, not giving up, being brave, sharing, saying sorry and caring for others.</p><p lang="zh-Hant">合作、不放棄、勇敢、分享、說對不起、關心別人。</p></div>
+<div><h3>Read anywhere, print at home · <span lang="zh-Hant">隨時看，也可以印</span></h3><p>PDFs for phone, tablet or computer, plus print-ready 300 dpi files.</p><p lang="zh-Hant">手機、平板、電腦都能看，另有 300 dpi 印刷版。</p></div>
+</div>
+
+<h2>Six stories, six themes · <span lang="zh-Hant">六個故事，六個主題</span></h2>
+<table class="themes">
+{themes}
+</table>
+
+<h2>Look inside · <span lang="zh-Hant">內頁預覽</span></h2>
+<p class="note">Four pages from Book 6, Pip and the First Snow. <span lang="zh-Hant">以下是第六集《皮皮和第一場雪》其中四頁。</span></p>
+<div class="pages">
+{pages}
+</div>
+
 <section id="bundle" class="bundlebox">
 <h2>All 6 Pip books in one bundle · <span lang="zh-Hant">皮皮全套 6 本</span></h2>
-<p>Teamwork, not giving up, being brave in the dark, sharing, saying sorry and caring for others: all six stories as PDF ebooks for US$9.99 (pay what you want), instead of 6 × US$4.99 = US$29.94 one by one. <span lang="zh-Hant">合作、不放棄、不怕黑、分享、說對不起、關心別人，六個故事一次過：全套 PDF 電子書 US$9.99（可以自訂價錢），逐本買要 6 × US$4.99 = US$29.94。</span></p>
+<div class="compare">
+<div>One by one · <span lang="zh-Hant">逐本買</span><b>US$29.94</b>6 × US$4.99</div>
+<div class="best">Bundle · <span lang="zh-Hant">全套</span><b>US$9.99</b>All 6 PDF books · <span lang="zh-Hant">6 本 PDF</span></div>
+</div>
+<p>Pay what you want from US$9.99. Paying more helps us make the next Pip book. <span lang="zh-Hant">US$9.99 起自訂價錢；多付一點可以支持我們出下一本。</span></p>
 <a class="btn buy" href="{BUNDLE}{UTM}">Get all 6 books · US$9.99<small lang="zh-Hant">購買全套 6 本 US$9.99</small></a>
 </section>
+
+<section id="free-samples">
+<h2>Not sure yet? Start free · <span lang="zh-Hant">還沒決定？先免費試讀</span></h2>
+<p>Every book has a free PDF sample: the cover and the first 5 story pages. Pick one and read it together tonight. <span lang="zh-Hant">每本都有免費試讀（PDF）：封面和故事的頭 5 頁。選一本，今晚一起讀。</span></p>
+<p class="chips">{samples}</p>
+</section>
+
+<h2>Questions · <span lang="zh-Hant">常見問題</span></h2>
+{faq}
+
 <h2>All books, newest first · <span lang="zh-Hant">全部繪本（最新在前）</span></h2>
 <div class="grid">
 {chr(10).join(cards)}
 </div>
 </main>
+<div class="sticky">
+<a class="btn free" href="#free-samples">Free sample<small lang="zh-Hant">免費試讀</small></a>
+<a class="btn buy" href="{BUNDLE}{UTM}">All 6 · US$9.99<small lang="zh-Hant">全套 6 本</small></a>
+</div>
 """
     return s + FOOT
 
@@ -286,10 +426,11 @@ def main():
             make_images(b)
         d = ROOT / b["slug"]; d.mkdir(exist_ok=True)
         (d / "index.html").write_text(book_page(b), encoding="utf-8")
+    make_og_collage()
     (ROOT / "index.html").write_text(index_page(), encoding="utf-8")
     urls = [f"{SITE}/"] + [f"{SITE}/{b['slug']}/" for b in sorted(BOOKS, key=lambda x: -x["n"])]
     (ROOT / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        + "".join(f"  <url><loc>{u}</loc><lastmod>2026-09-26</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
+        + "".join(f"  <url><loc>{u}</loc><lastmod>2026-09-29</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
     (ROOT / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n", encoding="utf-8")
     (ROOT / ".nojekyll").write_text("")
     json.dump([{k: b[k] for k in ("n", "slug", "en", "zh", "paid", "sample")} for b in BOOKS], open(ROOT / "books.json", "w"), ensure_ascii=False, indent=1)
