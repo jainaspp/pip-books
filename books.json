@@ -5,7 +5,12 @@
   "en": "Pip's Big Dig",
   "zh": "皮皮的大挖掘",
   "paid": "yulzdr",
-  "sample": "pips-big-dig-free-sample"
+  "sample": "pips-big-dig-free-sample",
+  "season": 1,
+  "status": "live",
+  "theme_en": "teamwork",
+  "theme_zh": "一起合作",
+  "price": "4.99"
  },
  {
   "n": 2,
@@ -13,7 +18,12 @@
   "en": "Pip and the Big Rain",
   "zh": "皮皮和大雨天",
   "paid": "pip-big-rain",
-  "sample": "pip-big-rain-free-sample"
+  "sample": "pip-big-rain-free-sample",
+  "season": 1,
+  "status": "live",
+  "theme_en": "not giving up and solving problems together",
+  "theme_zh": "不放棄、一起想辦法",
+  "price": "4.99"
  },
  {
   "n": 3,
@@ -21,7 +31,12 @@
   "en": "Pip and the Night Lights",
   "zh": "皮皮和螢火蟲",
   "paid": "pip-night-lights",
-  "sample": "pip-night-lights-free-sample"
+  "sample": "pip-night-lights-free-sample",
+  "season": 1,
+  "status": "live",
+  "theme_en": "being brave in the dark, together",
+  "theme_zh": "有朋友在身邊，不怕黑",
+  "price": "4.99"
  },
  {
   "n": 4,
@@ -29,7 +44,12 @@
   "en": "Pip and the Autumn Leaves",
   "zh": "皮皮和落葉",
   "paid": "pip-autumn-leaves",
-  "sample": "pip-autumn-leaves-free-sample"
+  "sample": "pip-autumn-leaves-free-sample",
+  "season": 1,
+  "status": "live",
+  "theme_en": "sharing",
+  "theme_zh": "分享",
+  "price": "4.99"
  },
  {
   "n": 5,
@@ -37,7 +57,12 @@
   "en": "Pip and the Windy Day",
   "zh": "皮皮和大風天",
   "paid": "pip-windy-day",
-  "sample": "pip-windy-day-free-sample"
+  "sample": "pip-windy-day-free-sample",
+  "season": 1,
+  "status": "live",
+  "theme_en": "saying sorry and fixing things together",
+  "theme_zh": "說對不起、一起修好",
+  "price": "4.99"
  },
  {
   "n": 6,
@@ -45,6 +70,11 @@
   "en": "Pip and the First Snow",
   "zh": "皮皮和第一場雪",
   "paid": "pip-first-snow",
-  "sample": "pip-first-snow-free-sample"
+  "sample": "pip-first-snow-free-sample",
+  "season": 1,
+  "status": "live",
+  "theme_en": "caring for others",
+  "theme_zh": "關心別人",
+  "price": "4.99"
  }
 ]
