@@ -11,7 +11,8 @@ Everything on the homepage is driven by two lists below:
             A "soon" book needs only n, season, status, slug, en, zh, theme_en, theme_zh
             (it gets a card with "Coming soon", no links, no detail page).
   BUNDLES – one dict per bundle (Gumroad slug, price, which books). Rendered on the sage band.
-Adding Books 7–12 later = append dicts to BOOKS (+ a BUNDLES entry for the Season 2 bundle).
+Books 7–12 (Season 2) are in BOOKS. The Season 2 bundle entry is already in BUNDLES but hidden until
+BUNDLE_S2 is set to its Gumroad URL (one-line change; check BUNDLE_S2_PRICE matches Gumroad).
 The Season 2 heading appears automatically once a season-2 book is in BOOKS.
 """
 import html, os, json
@@ -22,8 +23,12 @@ ROOT = Path(__file__).parent
 SITE = "https://jainaspp.github.io/pip-books"
 GR = "https://jainaspark4.gumroad.com/l/"
 UTM = "?utm_source=pipsite"
-# All 6 books, US$9.99 minimum (pay what you want). 6 × US$4.99 = US$29.94 separately.
+# Books 1–6 bundle, US$9.99 minimum (pay what you want). 6 × US$4.99 = US$29.94 separately.
 BUNDLE = "https://jainaspark4.gumroad.com/l/imzzp"
+# Books 7–12 bundle: leave "" until it is live on Gumroad, then paste its URL here and rebuild (it then shows
+# on the homepage bundles band, the Season 2 heading link, JSON-LD and the Book 7–12 page upsells).
+BUNDLE_S2 = ""
+BUNDLE_S2_PRICE = "9.99"   # confirm against Gumroad before setting BUNDLE_S2
 EMAIL = "jainaspp@gmail.com"
 REDBUBBLE = "https://www.redbubble.com/people/jainaspp/shop?collections=4588651"
 ETSY = "https://www.etsy.com/shop/PipTheMoleStories"
@@ -72,15 +77,60 @@ BOOKS = [
   sum_zh="冬天的第一場雪，皮皮、兔子和知更鳥跟著小小的腳印，找到了在樹叢下發抖的刺蝟寶寶蓬蓬。皮皮挖小路，兔子抱一抱，知更鳥找青苔，大家一起照顧蓬蓬。",
   short_en="Tiny footprints in the first snow lead the friends to a shivering baby hedgehog named Pom.",
   short_zh="第一場雪，小小的腳印通到樹叢下，找到了發抖的刺蝟寶寶蓬蓬。"),
+ dict(n=7, slug="pip-and-the-leaf-nest", src="/workspace/pipbook7/pages", paid="pip-leaf-nest", sample="pip-leaf-nest-free-sample",
+  en="Pip and the Leaf Nest", zh="皮皮和葉子窩", theme_en="saying goodbye for now", theme_zh="好好說再見",
+  kw="winter picture book, saying goodbye story for kids",
+  sum_en="Early winter. Lost little Pom is staying in Pip's underground room, but now Pom gives a big yawn: “I'm so sleepy. I want my leaf nest.” The snow is white everywhere and every bush looks the same. How can they find it? Sniff, sniff! Pom's little nose finds the way, and everyone follows her tiny footprints. A gentle story about saying goodbye for now: Pip doesn't want Pom to go, but he helps dig the snow away from the nest's door. “See you in spring!”",
+  sum_zh="入冬了，蓬蓬想回葉子窩睡長長的覺，可是雪地白白的……她用小鼻子找路，皮皮捨不得，卻幫她回家。好好說再見，春天再相見！",
+  short_en="Sleepy Pom wants to go home to her leaf nest, but the snow is all white. Pip helps her home and says goodbye for now.",
+  short_zh="蓬蓬想回葉子窩睡長長的覺，皮皮捨不得，卻幫她回家。"),
+ dict(n=8, slug="pip-and-the-snow-slide", src="/workspace/pipbook8/pages", paid="pip-snow-slide", sample="pip-snow-slide-free-sample",
+  en="Pip and the Snow Slide", zh="皮皮和雪滑梯", theme_en="speaking up and listening", theme_zh="說出想法、也聽聽別人",
+  kw="winter picture book, speaking up story for kids",
+  sum_en="It's winter, and white snow covers the hill. Pip digs a long snow ditch slide, but off they go— plop! The leaves sink into the soft snow and stop. Rabbit has a different idea. Will she say it? “Wait!” Rabbit calls. Thump, thump, thump! She stamps the snow hard with her long feet, everyone stamps together, and… Whoosh! A gentle story about speaking up and listening.",
+  sum_zh="冬天，大家想從雪山丘滑下來，可是雪溝一滑就陷進軟雪……兔子心裡有主意，敢說出來嗎？說出想法，也聽聽別人的，滑梯更好玩！",
+  short_en="Pip's snow slide sinks into the soft snow. Rabbit has a different idea. Will she say it?",
+  short_zh="皮皮的雪滑梯陷進軟雪，兔子心裡有別的主意，敢說出來嗎？"),
+ dict(n=9, slug="pip-and-the-spring-nest", src="/workspace/pipbook9/pages", paid="pip-spring-nest", sample="pip-spring-nest-free-sample",
+  en='Pip and the Spring Nest', zh="皮皮和春天的鳥窩", theme_en="trying again", theme_zh="再試一次",
+  kw="spring picture book, trying again story for kids",
+  sum_en="The snow melts and spring is here. Robin's old nest was squashed by the winter snow, so she will build a new one. But flip, flop! The twig falls down, again and again. Pip wants to build it for her, but Robin wants to do it herself: will he stay with her? Then Robin finds wet moss under the melting snow... A gentle story about trying again.",
+  sum_zh="春天到了，知更鳥想搭一個新窩，可是樹枝一次又一次掉下來……皮皮陪著她，她自己想到好方法。掉下來不怕，再試一次！",
+  short_en="Flip, flop! Robin's twigs keep falling. Pip stays with her, and she finds a way all by herself.",
+  short_zh="知更鳥的樹枝一次又一次掉下來，皮皮陪著她，她自己想到好方法。"),
+ dict(n=10, slug="pip-and-the-thorny-bush", src="/workspace/pipbook10/pages", paid="pip-thorny-bush", sample="pip-thorny-bush-free-sample",
+  en='Pip and the Thorny Bush', zh="皮皮和刺刺叢", theme_en="liking what makes you different", theme_zh="欣賞自己不一樣",
+  kw="spring picture book, story about being different for kids",
+  sum_en='Spring flowers bloom and Pom wakes up from her long winter sleep. But when everyone rushes to hug her, Pom gets a fright and her spines pop up! Then the picnic basket bumps a stone, rolls down the slope and gets stuck deep inside a thorny bush. Nobody can reach it... except someone with spines. Roll, roll! A gentle story about liking what makes you different.',
+  sum_zh="春天，蓬蓬醒來了，可是一受驚，刺就豎起來……野餐籃滾進刺刺叢，誰都拿不到。原來，蓬蓬的刺刺，也有它的好！",
+  short_en="Pom's spines pop up when she's scared. Then the picnic basket rolls into a thorny bush, and nobody can reach it...",
+  short_zh="蓬蓬一嚇，刺就豎起來。野餐籃滾進刺刺叢，誰都拿不到……"),
+ dict(n=11, slug="pip-and-the-hot-day", src="/workspace/pipbook11/pages", paid="pip-hot-day", sample="pip-hot-day-free-sample",
+  en='Pip and the Hot Day', zh="皮皮和大熱天", theme_en="stopping when you feel cross", theme_zh="生氣時先停一停",
+  kw="summer picture book, calming down story for kids",
+  sum_en="Early summer, and it's too hot! Pip digs a cool tunnel for everyone, fast and hard... then crash! The whole tunnel falls in. Bubble, bubble! Pip's tummy feels like a pot of boiling water. Rabbit sits down beside him: “Shh, shh...” and takes a slow, deep breath. Once Pip is calm, he can hear Pom's good idea. A gentle story about stopping when you feel cross.",
+  sum_zh="大熱天，皮皮給大家挖涼涼的地道，快挖好時整條塌了！肚子裡咕嘟咕嘟……先停一停，吸一口氣，靜下來，才聽得見朋友的好方法。",
+  short_en="Pip's cool tunnel falls in, and his tummy goes bubble, bubble! Stop, take a breath, and listen.",
+  short_zh="皮皮的涼涼地道塌了，肚子裡咕嘟咕嘟！先停一停，吸一口氣。"),
+ dict(n=12, slug="pip-and-the-friendship-circle", src="/workspace/pipbook12/pages", paid="pip-friendship-circle", sample="pip-friendship-circle-free-sample",
+  en='Pip and the Friendship Circle', zh="皮皮和大圓圈", theme_en="saying thank you and making room", theme_zh="感謝，和這裡有你位子",
+  kw="friendship picture book, belonging story for kids",
+  sum_en="A summer night by the pond. The three old friends remember last summer, when fireflies filled the air. But the grass nest is full, and Pom sits outside, all alone. “Last summer... I wasn't here then.” Pip stands up: “Now, you're here. Let's dig a spot together!” Heave-ho! A gentle story about saying thank you and making room. The finale of Volume 1.",
+  sum_zh="夏天晚上，大家在池塘邊等螢火蟲回來。蓬蓬坐在草窩外，靜靜的……「那時候，我不在。」皮皮站起來，大家一起多挖一個位子！第一冊終章。",
+  short_en='The nest is full and Pom sits outside. Heave-ho! The friends dig one more spot. The Volume 1 finale.',
+  short_zh="草窩擠滿了，蓬蓬坐在外邊。嘿咻嘿咻！大家多挖一個位子。第一冊終章。"),
 ]
 
 E = html.escape
 
-BUNDLES = [
+BUNDLES = [b for b in [
  dict(id="season-1", season=1, books=[1, 2, 3, 4, 5, 6], url=BUNDLE, price="9.99", fan=[3, 6, 4],
-  en="All 6 Pip books in one bundle", zh="皮皮全套 6 本",
-  btn_en="Get all 6 books · US$9.99", label_en="Season 1 · Books 1–6", label_zh="第一輯"),
-]
+  en="Pip Books 1–6 in one bundle", zh="皮皮第 1–6 集套裝",
+  btn_en="Get Books 1–6 · US$9.99", label_en="Season 1 · Books 1–6", label_zh="第一輯"),
+ dict(id="season-2", season=2, books=[7, 8, 9, 10, 11, 12], url=BUNDLE_S2, price=BUNDLE_S2_PRICE, fan=[9, 12, 8],
+  en="Pip Books 7–12 in one bundle", zh="皮皮第 7–12 集套裝",
+  btn_en=f"Get Books 7–12 · US${BUNDLE_S2_PRICE}", label_en="Season 2 · Books 7–12", label_zh="第二輯"),
+] if b["url"]]   # a bundle without a URL is hidden everywhere
 
 ZH_NUM = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"]
 
@@ -275,14 +325,20 @@ def book_page(b):
         f'alt="{E(b["en"])}, story page {i}: illustration with Traditional Chinese and English text">' for i in range(1, 5))
     others = [o for o in sorted(live_books(), key=lambda x: -x["n"]) if o is not b]
     more = " · ".join(f'<a href="../{o["slug"]}/">{E(o["en"])} <span lang="zh-Hant">{o["zh"]}</span></a>' for o in others)
-    upsell = (f'<p class="upsell">Want all six? <a href="{BUNDLE}{UTM}">Get the Pip bundle, all 6 books for US$9.99</a> '
-              f'· <span lang="zh-Hant">想要全套？<a href="{BUNDLE}{UTM}">皮皮全套 6 本 US$9.99</a></span></p>')
+    own = next((x for x in BUNDLES if b["n"] in x["books"]), None)
+    if own:   # this book is in a live bundle
+        r = f'{own["books"][0]}–{own["books"][-1]}'
+        upsell = (f'<p class="upsell">Want the set? <a href="{own["url"]}{UTM}">Get Pip Books {r} in one bundle for US${own["price"]}</a> '
+                  f'· <span lang="zh-Hant">想要套裝？<a href="{own["url"]}{UTM}">皮皮第 {r} 集套裝 US${own["price"]}</a></span></p>')
+    else:     # Books 7–12 until their bundle is live: point to the Books 1–6 bundle
+        upsell = (f'<p class="upsell">Also available: <a href="{BUNDLE}{UTM}">the Pip bundle of Books 1–6 for US$9.99</a> '
+                  f'· <span lang="zh-Hant">另有<a href="{BUNDLE}{UTM}">皮皮第 1–6 集套裝 US$9.99</a></span></p>')
     s = head(title, desc, kw, url, img, "book")
     s += f"""<main>
 <div class="book">
 <div class="cover"><img src="../img/{b['slug']}/cover.webp" width="600" height="800" alt="Cover of {E(b['en'])} / {b['zh']}: Pip the mole and friends"></div>
 <div>
-<p class="note">Book {b['n']} · <span lang="zh-Hant">第{"一二三四五六"[b['n']-1]}集</span></p>
+<p class="note">Book {b['n']} · <span lang="zh-Hant">第{["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"][b['n']-1]}集</span></p>
 <h1>{E(b['en'])}<span class="zh" lang="zh-Hant">{b['zh']}</span></h1>
 <div class="cta top">
 <a class="btn free" href="{GR}{b['sample']}{UTM}">Read the free sample<small lang="zh-Hant">免費試讀（封面＋頭 5 頁）</small></a>
@@ -482,7 +538,7 @@ FAQ = [
 WHY = [
  ("together", "Two languages, one page", "同一頁中英對照", "English and Traditional Chinese together on every page. Read either one, or both."),
  ("calm", "Short and calm", "短而平靜", "16 story pages with short, repeating lines and a read-aloud refrain. Made for winding down."),
- ("lesson", "One small lesson per book", "每本一個小道理", "Teamwork, being brave, sharing, saying sorry, caring for others."),
+ ("lesson", "One small lesson per book", "每本一個小道理", "Teamwork, sharing, saying sorry, trying again, speaking up, saying thank you."),
 ]
 
 def make_og_collage():
@@ -491,20 +547,20 @@ def make_og_collage():
     if out.exists() and not os.environ.get("REIMG"):
         return
     bg = Image.new("RGB", (1200, 630), (251, 246, 236))
-    w, h = 204, 272
-    for i, b in enumerate(live_books()[:6]):
+    w, h = 144, 192   # up to 12 covers, 4 × 3 grid
+    for i, b in enumerate(live_books()[:12]):
         c = Image.open(ROOT / "img" / b["slug"] / "cover.webp").convert("RGB").resize((w, h), Image.LANCZOS)
-        bg.paste(c, (36 + (i % 3) * (w + 14), 36 + (i // 3) * (h + 14)))
+        bg.paste(c, (36 + (i % 4) * (w + 12), 21 + (i // 4) * (h + 12)))
     d = ImageDraw.Draw(bg)
     fp = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"
     f1 = ImageFont.truetype(fp, 50, index=2); f2 = ImageFont.truetype(fp, 30, index=2); f3 = ImageFont.truetype(fp, 34, index=2)
-    x = 730
+    x = 690
     d.text((x, 120), "Pip the Mole", font=f1, fill=(90, 61, 34))
     d.text((x, 185), "皮皮繪本", font=f1, fill=(138, 75, 18))
-    d.text((x, 280), "6 bilingual picture books", font=f2, fill=(59, 47, 36))
+    d.text((x, 280), f"{len(live_books())} bilingual picture books", font=f2, fill=(59, 47, 36))
     d.text((x, 322), "中英對照 · Ages 3–6", font=f2, fill=(59, 47, 36))
-    d.rounded_rectangle((x, 400, x + 400, 470), radius=16, fill=(184, 100, 28))
-    d.text((x + 24, 412), "All 6 · US$9.99", font=f3, fill=(255, 255, 255))
+    d.rounded_rectangle((x, 400, x + 440, 470), radius=16, fill=(184, 100, 28))
+    d.text((x + 24, 412), "6-book set · US$9.99", font=f3, fill=(255, 255, 255))
     bg.save(out, "JPEG", quality=84, optimize=True, progressive=True)
 
 def book_card(b, newest):
@@ -546,9 +602,9 @@ def index_page():
     newest = live[-1]
     min_bundle = min(BUNDLES, key=lambda x: float(x["price"]))["price"]
     title = "Pip the Mole 皮皮繪本 · Bilingual Chinese English Picture Books, Ages 3–6 · Free Samples & Bundle"
-    ogtitle = f"Pip the Mole 皮皮繪本 · {n_live} bilingual picture books for ages 3–6 · all 6 for US$9.99"
+    ogtitle = f"Pip the Mole 皮皮繪本 · {n_live} bilingual picture books for ages 3–6 · 6-book set from US${min_bundle}"
     desc = (f"{n_live} bilingual picture books for kids aged 3–6, English + Traditional Chinese on every page. "
-            f"Read a free sample of any book, or get them all in a bundle from US${min_bundle}. 中英對照雙語繪本：每本免費試讀，或者一次過買全套。")
+            f"Read a free sample of any book, or get a 6-book set from US${min_bundle}. 中英對照雙語繪本，共 {n_live} 本：每本免費試讀，或者買六本套裝。")
 
     # Books grid: one grid per season, series order, each book once
     seasons = sorted({season_of(b) for b in BOOKS})
@@ -558,7 +614,7 @@ def index_page():
         rng = f"Books {bs[0]['n']}–{bs[-1]['n']}" if len(bs) > 1 else f"Book {bs[0]['n']}"
         zh_s = f"第{ZH_NUM[sn - 1]}輯"
         bund = next((x for x in BUNDLES if x["season"] == sn), None)
-        blink = (f'<a href="#bundles">All {len(bund["books"])} in one bundle · US${bund["price"]} →</a>' if bund else "")
+        blink = (f'<a href="#bundle-{bund["id"]}">Books {bund["books"][0]}–{bund["books"][-1]} in one bundle · US${bund["price"]} →</a>' if bund else "")
         cards = "\n".join(book_card(b, newest) for b in bs)
         blocks.append(f"""<div class="season-block" id="season-{sn}">
 <div class="season"><h3>Season {sn} · {rng}<span class="zh" lang="zh-Hant">{zh_s}</span></h3>{blink}</div>
@@ -632,7 +688,7 @@ def index_page():
 <p class="zh" lang="zh-Hant">中英對照睡前繪本：小鼴鼠皮皮</p>
 <p class="body">Picture books about Pip the mole and friends, with English and Traditional Chinese on every page. Ages 3–6.<span class="zh" lang="zh-Hant">小鼴鼠皮皮的短篇繪本，每頁中英對照，3–6 歲。</span></p>
 <div class="actions">
-<a class="btn" id="hero-cta" href="#bundles">Get all books · <span lang="zh-Hant">全套</span> US${min_bundle}+</a>
+<a class="btn" id="hero-cta" href="#bundles">Get a 6-book set · <span lang="zh-Hant">六本套裝</span> US${min_bundle}+</a>
 <a class="textlink" href="#books">Read a free sample · <span lang="zh-Hant">免費試讀</span> →</a>
 </div>
 </div>
@@ -701,7 +757,7 @@ def index_page():
 </footer>
 
 <div class="sticky" id="sticky" aria-hidden="true">
-<a class="btn" href="#bundles" tabindex="-1"><span lang="zh-Hant">全套</span> US${min_bundle}+</a>
+<a class="btn" href="#bundles" tabindex="-1">Get a 6-book set · <span lang="zh-Hant">六本套裝</span> US${min_bundle}+</a>
 </div>
 <script>
 (function(){{
@@ -733,7 +789,7 @@ def main():
     (ROOT / "index.html").write_text(index_page(), encoding="utf-8")
     urls = [f"{SITE}/"] + [f"{SITE}/{b['slug']}/" for b in sorted(live_books(), key=lambda x: -x["n"])]
     (ROOT / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        + "".join(f"  <url><loc>{u}</loc><lastmod>2026-09-29</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
+        + "".join(f"  <url><loc>{u}</loc><lastmod>2026-10-01</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
     (ROOT / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n", encoding="utf-8")
     (ROOT / ".nojekyll").write_text("")
     json.dump([{**{k: b[k] for k in ("n", "slug", "en", "zh", "paid", "sample")}, "season": season_of(b), "status": status_of(b),

@@ -76,5 +76,83 @@
   "theme_en": "caring for others",
   "theme_zh": "關心別人",
   "price": "4.99"
+ },
+ {
+  "n": 7,
+  "slug": "pip-and-the-leaf-nest",
+  "en": "Pip and the Leaf Nest",
+  "zh": "皮皮和葉子窩",
+  "paid": "pip-leaf-nest",
+  "sample": "pip-leaf-nest-free-sample",
+  "season": 2,
+  "status": "live",
+  "theme_en": "saying goodbye for now",
+  "theme_zh": "好好說再見",
+  "price": "4.99"
+ },
+ {
+  "n": 8,
+  "slug": "pip-and-the-snow-slide",
+  "en": "Pip and the Snow Slide",
+  "zh": "皮皮和雪滑梯",
+  "paid": "pip-snow-slide",
+  "sample": "pip-snow-slide-free-sample",
+  "season": 2,
+  "status": "live",
+  "theme_en": "speaking up and listening",
+  "theme_zh": "說出想法、也聽聽別人",
+  "price": "4.99"
+ },
+ {
+  "n": 9,
+  "slug": "pip-and-the-spring-nest",
+  "en": "Pip and the Spring Nest",
+  "zh": "皮皮和春天的鳥窩",
+  "paid": "pip-spring-nest",
+  "sample": "pip-spring-nest-free-sample",
+  "season": 2,
+  "status": "live",
+  "theme_en": "trying again",
+  "theme_zh": "再試一次",
+  "price": "4.99"
+ },
+ {
+  "n": 10,
+  "slug": "pip-and-the-thorny-bush",
+  "en": "Pip and the Thorny Bush",
+  "zh": "皮皮和刺刺叢",
+  "paid": "pip-thorny-bush",
+  "sample": "pip-thorny-bush-free-sample",
+  "season": 2,
+  "status": "live",
+  "theme_en": "liking what makes you different",
+  "theme_zh": "欣賞自己不一樣",
+  "price": "4.99"
+ },
+ {
+  "n": 11,
+  "slug": "pip-and-the-hot-day",
+  "en": "Pip and the Hot Day",
+  "zh": "皮皮和大熱天",
+  "paid": "pip-hot-day",
+  "sample": "pip-hot-day-free-sample",
+  "season": 2,
+  "status": "live",
+  "theme_en": "stopping when you feel cross",
+  "theme_zh": "生氣時先停一停",
+  "price": "4.99"
+ },
+ {
+  "n": 12,
+  "slug": "pip-and-the-friendship-circle",
+  "en": "Pip and the Friendship Circle",
+  "zh": "皮皮和大圓圈",
+  "paid": "pip-friendship-circle",
+  "sample": "pip-friendship-circle-free-sample",
+  "season": 2,
+  "status": "live",
+  "theme_en": "saying thank you and making room",
+  "theme_zh": "感謝，和這裡有你位子",
+  "price": "4.99"
  }
 ]
