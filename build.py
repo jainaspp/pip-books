@@ -11,6 +11,8 @@ UTM = "?utm_source=pipsite"
 # All 6 books, US$9.99 minimum (pay what you want). 6 × US$4.99 = US$29.94 separately.
 BUNDLE = "https://jainaspark4.gumroad.com/l/imzzp"
 EMAIL = "jainaspp@gmail.com"
+REDBUBBLE = "https://www.redbubble.com/people/jainaspp/shop?collections=4588651"
+ETSY = "https://www.etsy.com/shop/PipTheMoleStories"
 
 BOOKS = [
  dict(n=1, slug="pips-big-dig", src="/workspace/pipbook/pages", paid="yulzdr", sample="pips-big-dig-free-sample",
@@ -412,6 +414,15 @@ def index_page():
 <div class="grid">
 {chr(10).join(cards)}
 </div>
+
+<section id="more-ways">
+<h2>More ways to get Pip · <span lang="zh-Hant">其他購買渠道</span></h2>
+<p class="chips">
+<a class="chip" href="{REDBUBBLE}" target="_blank" rel="noopener">Pip the Mole <span lang="zh-Hant">皮皮 周邊</span> on Redbubble</a>
+<a class="chip" href="{ETSY}" target="_blank" rel="noopener">Pip the Mole <span lang="zh-Hant">皮皮</span> on Etsy</a>
+</p>
+<p class="note">Redbubble: stickers, mugs and other merch. Etsy: the same PDF ebooks. <span lang="zh-Hant">Redbubble：貼紙、杯子等周邊產品；Etsy：同樣的 PDF 電子書。</span></p>
+</section>
 </main>
 <div class="sticky">
 <a class="btn free" href="#free-samples">Free sample<small lang="zh-Hant">免費試讀</small></a>
