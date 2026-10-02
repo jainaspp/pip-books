@@ -27,7 +27,7 @@ UTM = "?utm_source=pipsite"
 BUNDLE = "https://jainaspark4.gumroad.com/l/imzzp"
 # Books 7–12 bundle: leave "" until it is live on Gumroad, then paste its URL here and rebuild (it then shows
 # on the homepage bundles band, the Season 2 heading link, JSON-LD and the Book 7–12 page upsells).
-BUNDLE_S2 = ""
+BUNDLE_S2 = "https://jainaspark4.gumroad.com/l/puwhe"
 BUNDLE_S2_PRICE = "9.99"   # confirm against Gumroad before setting BUNDLE_S2
 EMAIL = "jainaspp@gmail.com"
 REDBUBBLE = "https://www.redbubble.com/people/jainaspp/shop?collections=4588651"
@@ -116,9 +116,9 @@ BOOKS = [
   en='Pip and the Friendship Circle', zh="皮皮和大圓圈", theme_en="saying thank you and making room", theme_zh="感謝，和這裡有你位子",
   kw="friendship picture book, belonging story for kids",
   sum_en="A summer night by the pond. The three old friends remember last summer, when fireflies filled the air. But the grass nest is full, and Pom sits outside, all alone. “Last summer... I wasn't here then.” Pip stands up: “Now, you're here. Let's dig a spot together!” Heave-ho! A gentle story about saying thank you and making room. The finale of Volume 1.",
-  sum_zh="夏天晚上，大家在池塘邊等螢火蟲回來。蓬蓬坐在草窩外，靜靜的……「那時候，我不在。」皮皮站起來，大家一起多挖一個位子！第一冊終章。",
-  short_en='The nest is full and Pom sits outside. Heave-ho! The friends dig one more spot. The Volume 1 finale.',
-  short_zh="草窩擠滿了，蓬蓬坐在外邊。嘿咻嘿咻！大家多挖一個位子。第一冊終章。"),
+  sum_zh="夏天晚上，大家在池塘邊等螢火蟲回來。蓬蓬坐在草窩外，靜靜的……「那時候，我不在。」皮皮站起來，大家一起多挖一個位子！第二輯終章。",
+  short_en='The nest is full and Pom sits outside. Heave-ho! The friends dig one more spot. The Season 2 finale.',
+  short_zh="草窩擠滿了，蓬蓬坐在外邊。嘿咻嘿咻！大家多挖一個位子。第二輯終章。"),
 ]
 
 E = html.escape
@@ -601,10 +601,21 @@ def index_page():
     n_live = len(live)
     newest = live[-1]
     min_bundle = min(BUNDLES, key=lambda x: float(x["price"]))["price"]
-    title = "Pip the Mole 皮皮繪本 · Bilingual Chinese English Picture Books, Ages 3–6 · Free Samples & Bundle"
-    ogtitle = f"Pip the Mole 皮皮繪本 · {n_live} bilingual picture books for ages 3–6 · 6-book set from US${min_bundle}"
-    desc = (f"{n_live} bilingual picture books for kids aged 3–6, English + Traditional Chinese on every page. "
-            f"Read a free sample of any book, or get a 6-book set from US${min_bundle}. 中英對照雙語繪本，共 {n_live} 本：每本免費試讀，或者買六本套裝。")
+    multi = len(BUNDLES) > 1
+    title = "Pip the Mole 皮皮繪本 · Bilingual Chinese English Picture Books, Ages 3–6 · Free Samples & Bundle" + ("s" if multi else "")
+    if multi:
+        ogtitle = f"Pip the Mole 皮皮繪本 · {n_live} bilingual picture books for ages 3–6 · two 6-book sets from US${min_bundle}"
+        desc = (f"{n_live} bilingual picture books for kids aged 3–6, English + Traditional Chinese on every page. "
+                f"Read a free sample of any book, or get a 6-book set (Books 1–6 or Books 7–12) from US${min_bundle}. "
+                f"中英對照雙語繪本，共 {n_live} 本：每本免費試讀，或者買六本套裝（第 1–6 集、第 7–12 集兩套）。")
+        cta = f'Get a 6-book set · Books 1–6 or 7–12 · <span lang="zh-Hant">六本套裝（兩套）</span> US${min_bundle}+'
+        cta_short = f'Get a 6-book set · <span lang="zh-Hant">六本套裝（兩套）</span> US${min_bundle}+'   # sticky bar: keep to one line on phones
+    else:
+        ogtitle = f"Pip the Mole 皮皮繪本 · {n_live} bilingual picture books for ages 3–6 · 6-book set from US${min_bundle}"
+        desc = (f"{n_live} bilingual picture books for kids aged 3–6, English + Traditional Chinese on every page. "
+                f"Read a free sample of any book, or get a 6-book set from US${min_bundle}. 中英對照雙語繪本，共 {n_live} 本：每本免費試讀，或者買六本套裝。")
+        cta = f'Get a 6-book set · <span lang="zh-Hant">六本套裝</span> US${min_bundle}+'
+        cta_short = cta
 
     # Books grid: one grid per season, series order, each book once
     seasons = sorted({season_of(b) for b in BOOKS})
@@ -688,7 +699,7 @@ def index_page():
 <p class="zh" lang="zh-Hant">中英對照睡前繪本：小鼴鼠皮皮</p>
 <p class="body">Picture books about Pip the mole and friends, with English and Traditional Chinese on every page. Ages 3–6.<span class="zh" lang="zh-Hant">小鼴鼠皮皮的短篇繪本，每頁中英對照，3–6 歲。</span></p>
 <div class="actions">
-<a class="btn" id="hero-cta" href="#bundles">Get a 6-book set · <span lang="zh-Hant">六本套裝</span> US${min_bundle}+</a>
+<a class="btn" id="hero-cta" href="#bundles">{cta}</a>
 <a class="textlink" href="#books">Read a free sample · <span lang="zh-Hant">免費試讀</span> →</a>
 </div>
 </div>
@@ -757,7 +768,7 @@ def index_page():
 </footer>
 
 <div class="sticky" id="sticky" aria-hidden="true">
-<a class="btn" href="#bundles" tabindex="-1">Get a 6-book set · <span lang="zh-Hant">六本套裝</span> US${min_bundle}+</a>
+<a class="btn" href="#bundles" tabindex="-1">{cta_short}</a>
 </div>
 <script>
 (function(){{
