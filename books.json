@@ -154,5 +154,83 @@
   "theme_en": "saying thank you and making room",
   "theme_zh": "感謝，和這裡有你位子",
   "price": "4.99"
+ },
+ {
+  "n": 13,
+  "slug": "pip-and-the-steady-light",
+  "en": "Pip and the Steady Light",
+  "zh": "皮皮和遠處的光",
+  "paid": "pip-steady-light",
+  "sample": "pip-steady-light-free-sample",
+  "season": 3,
+  "status": "live",
+  "theme_en": "being curious and brave together",
+  "theme_zh": "好奇、一起勇敢去看看",
+  "price": "4.99"
+ },
+ {
+  "n": 14,
+  "slug": "pip-and-the-old-badger",
+  "en": "Pip and the Old Badger",
+  "zh": "皮皮和獾婆婆",
+  "paid": "pip-old-badger",
+  "sample": "pip-old-badger-free-sample",
+  "season": 3,
+  "status": "live",
+  "theme_en": "saying hello first",
+  "theme_zh": "主動打招呼",
+  "price": "4.99"
+ },
+ {
+  "n": 15,
+  "slug": "pip-and-the-apple-tree",
+  "en": "Pip and the Apple Tree",
+  "zh": "皮皮和蘋果樹",
+  "paid": "pip-apple-tree",
+  "sample": "pip-apple-tree-free-sample",
+  "season": 3,
+  "status": "live",
+  "theme_en": "asking before helping",
+  "theme_zh": "幫忙前先問對方需要甚麼",
+  "price": "4.99"
+ },
+ {
+  "n": 16,
+  "slug": "pip-and-the-little-lantern",
+  "en": "Pip and the Little Lantern",
+  "zh": "皮皮和小燈籠",
+  "paid": "pip-little-lantern",
+  "sample": "pip-little-lantern-free-sample",
+  "season": 3,
+  "status": "live",
+  "theme_en": "keeping a promise",
+  "theme_zh": "守承諾",
+  "price": "4.99"
+ },
+ {
+  "n": 17,
+  "slug": "pip-and-the-fog",
+  "en": "Pip and the Fog",
+  "zh": "皮皮和大霧",
+  "paid": "pip-fog",
+  "sample": "",
+  "season": 3,
+  "status": "live",
+  "theme_en": "staying close to friends",
+  "theme_zh": "跟緊同伴",
+  "price": "4.99"
+ },
+ {
+  "n": 18,
+  "slug": "pip-and-the-wobbly-bridge",
+  "en": "Pip and the Wobbly Bridge",
+  "zh": "皮皮和搖晃的橋",
+  "paid": "pip-wobbly-bridge",
+  "sample": "",
+  "season": 3,
+  "status": "live",
+  "theme_en": "saying what worries you",
+  "theme_zh": "說出擔心",
+  "price": "4.99"
  }
 ]

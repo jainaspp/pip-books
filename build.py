@@ -11,8 +11,9 @@ Everything on the homepage is driven by two lists below:
             A "soon" book needs only n, season, status, slug, en, zh, theme_en, theme_zh
             (it gets a card with "Coming soon", no links, no detail page).
   BUNDLES – one dict per bundle (Gumroad slug, price, which books). Rendered on the sage band.
-Books 7–12 (Season 2) are in BOOKS. The Season 2 bundle entry is already in BUNDLES but hidden until
-BUNDLE_S2 is set to its Gumroad URL (one-line change; check BUNDLE_S2_PRICE matches Gumroad).
+Books 7–12 (Season 2) and 13–18 (Season 3) are in BOOKS. The Season 3 bundle entry is already in BUNDLES but hidden
+until BUNDLE_S3 is set to its Gumroad URL (one-line change; check BUNDLE_S3_PRICE matches Gumroad).
+A book with sample="" (free sample not live yet) gets no free-sample links; fill in its Gumroad slug once live.
 The Season 2 heading appears automatically once a season-2 book is in BOOKS.
 """
 import html, os, json
@@ -29,6 +30,9 @@ BUNDLE = "https://jainaspark4.gumroad.com/l/imzzp"
 # on the homepage bundles band, the Season 2 heading link, JSON-LD and the Book 7–12 page upsells).
 BUNDLE_S2 = "https://jainaspark4.gumroad.com/l/puwhe"
 BUNDLE_S2_PRICE = "9.99"   # confirm against Gumroad before setting BUNDLE_S2
+# Books 13–18 bundle (Season 3): leave "" until it is live on Gumroad, then paste its URL here and rebuild.
+BUNDLE_S3 = ""
+BUNDLE_S3_PRICE = "9.99"   # confirm against Gumroad before setting BUNDLE_S3
 EMAIL = "jainaspp@gmail.com"
 REDBUBBLE = "https://www.redbubble.com/people/jainaspp/shop?collections=4588651"
 ETSY = "https://www.etsy.com/shop/PipTheMoleStories"
@@ -119,6 +123,48 @@ BOOKS = [
   sum_zh="夏天晚上，大家在池塘邊等螢火蟲回來。蓬蓬坐在草窩外，靜靜的……「那時候，我不在。」皮皮站起來，大家一起多挖一個位子！第二輯終章。",
   short_en='The nest is full and Pom sits outside. Heave-ho! The friends dig one more spot. The Season 2 finale.',
   short_zh="草窩擠滿了，蓬蓬坐在外邊。嘿咻嘿咻！大家多挖一個位子。第二輯終章。"),
+ dict(n=13, season=3, slug="pip-and-the-steady-light", src="/workspace/pipbook13/pages", paid="pip-steady-light", sample="pip-steady-light-free-sample",
+  en="Pip and the Steady Light", zh="皮皮和遠處的光", theme_en="being curious and brave together", theme_zh="好奇、一起勇敢去看看",
+  kw="adventure picture book, being brave story for kids",
+  sum_en="Beyond the hill, one light never blinks. Pip tells Mum and Dad where they're going, and the four friends set off. At the top of the hill is a big, big valley, and it's getting dark. Pip's heart goes thump, thump. He wants to go home… until he sees Pom, curled up tight. He holds her little paw: “Let's look together.” Robin flies up to the tallest pine: “I see it! By the stream. It doesn't blink or move. That's our light!” A gentle story about being curious and brave together. The first book of Season 3.",
+  sum_zh="山丘那邊，有一點光不閃也不動。皮皮跟爸媽說好去哪裡，就和好朋友出發了。河谷好大，皮皮好怕，可是他看見蓬蓬縮成一團，就牽起她的小爪子：「我們一起看。」第三輯第一本。",
+  short_en="A steady light shines beyond the hill. The valley is big and Pip is scared, but he holds Pom's paw: “Let's look together.”",
+  short_zh="山丘那邊有一點不閃也不動的光。皮皮好怕，可是他牽起蓬蓬的小爪子：「我們一起看。」"),
+ dict(n=14, season=3, slug="pip-and-the-old-badger", src="/workspace/pipbook14/pages", paid="pip-old-badger", sample="pip-old-badger-free-sample",
+  en="Pip and the Old Badger", zh="皮皮和獾婆婆", theme_en="saying hello first", theme_zh="主動打招呼",
+  kw="making friends picture book, saying hello story for kids",
+  sum_en="The next morning, the four friends cross the hill again and come to the door by the little window. The door is big and tall. Pip lifts his paw to knock… then puts it down. “Who will knock first?” Nobody dares. Only little Pom stands on tiptoe and peeks in: one chair, one cup. “Someone is all alone.” Knock, knock, knock! The door opens, and an old badger smiles: “It's been a long, long time since anyone knocked.” A gentle story about saying hello first.",
+  sum_zh="第二天，四個好朋友來到小窗前的門口。門好高好大，誰也不敢敲。最小的蓬蓬踮起腳尖往窗裡看：「這裡只有一個人呢。」叩叩叩！門開了，獾婆婆笑了：「好久好久，沒有人來敲門了。」",
+  short_en="The door is so big. Who dares to knock? Little Pom peeks in the window, then knock, knock, knock!",
+  short_zh="門好高好大，誰敢敲？最小的蓬蓬踮起腳尖往窗裡看，叩叩叩！"),
+ dict(n=15, season=3, tag_en="asking before helping", slug="pip-and-the-apple-tree", src="/workspace/pipbook15/pages", paid="pip-apple-tree", sample="pip-apple-tree-free-sample",
+  en="Pip and the Apple Tree", zh="皮皮和蘋果樹", theme_en="asking before helping", theme_zh="幫忙前先問對方需要甚麼",
+  kw="summer picture book, helping others story for kids",
+  sum_en="It's summer, and the apple tree by Old Badger's house is full of red apples. Thud! An apple drops into the grass. “Old Badger can't climb. I'll pick them all!” says Pip, and he hugs the trunk. Rabbit gently touches his arm: “Wait. It's Old Badger's tree. Let's ask her first.” Old Badger has her own way to pick the high apples, and she asks the friends to gather the fallen ones. Robin spots, Rabbit hops, Pom rolls. Scratch, scratch, scoop! A gentle story about asking before helping.",
+  sum_zh="獾婆婆的蘋果熟了，咚！皮皮想爬上樹，全部摘下來。兔子說：「先問問她吧。」原來獾婆婆想要的，是大家幫她撿掉下來的蘋果。先問再來幫！",
+  short_en="Pip wants to climb up and pick all of Old Badger's apples. “Let's ask her first,” says Rabbit.",
+  short_zh="皮皮想把獾婆婆的蘋果全部摘下來。兔子說：「先問問她吧。」"),
+ dict(n=16, season=3, slug="pip-and-the-little-lantern", src="/workspace/pipbook16/pages", paid="pip-little-lantern", sample="pip-little-lantern-free-sample",
+  en="Pip and the Little Lantern", zh="皮皮和小燈籠", theme_en="keeping a promise", theme_zh="守承諾",
+  kw="autumn picture book, keeping a promise story for kids",
+  sum_en="It's autumn in the valley. Old Badger walks very slowly, and she needs her little lantern in her window to find her way home after dark. “Me! I promise!” says Pip. “I'll get it there before dark!” Around the bend is a big pile of crunchy gold leaves. “Let's jump in!” Pip's feet itch to jump too… but he hugs the lantern close and walks past, step by step. “I promised Old Badger. After we deliver the lantern, we'll come back and jump!” A gentle story about keeping a promise.",
+  sum_zh="獾婆婆請皮皮送小燈籠回家。皮皮答應了：「天黑前一定送到！」路邊有一大堆金黃落葉，嚓嚓嚓……好想跳！皮皮把燈籠抱緊：「送完燈籠，我們再回來跳！」",
+  short_en="Pip promises to take Old Badger's lantern home before dark. Then he sees a big pile of crunchy leaves…",
+  short_zh="皮皮答應天黑前把小燈籠送到。路邊的落葉堆嚓嚓嚓，好想跳！"),
+ dict(n=17, season=3, slug="pip-and-the-fog", src="/workspace/pipbook17/pages", paid="pip-fog", sample="",
+  en="Pip and the Fog", zh="皮皮和大霧", theme_en="staying close to friends", theme_zh="跟緊同伴",
+  kw="autumn picture book, staying safe story for kids",
+  sum_en="One autumn morning, thick fog rolls over the hill, white and soft like a big cotton ball. Sniff, sniff! Rabbit smells clover and hops off into the white fog. “Me too!” says Pip. “Stop!” shouts Pom. She remembers the snowy day when she couldn't find her home. “Let's hold each other's tails as we walk. Then nobody gets lost.” Step by step, nobody lets go, until the fog lifts over a big patch of green clover. A gentle story about staying close to friends.",
+  sum_zh="秋天的山丘，忽然起了大霧。兔子聞到三葉草的香味，一跳，就跳進了白霧裡……蓬蓬大聲喊：「停！」大家一個拉著一個的尾巴走，誰也不會走丟。",
+  short_en="Thick fog covers the hill and Rabbit hops off after the smell of clover. “Stop!” shouts Pom.",
+  short_zh="大霧裡，兔子一跳就跳進白霧裡。蓬蓬大聲喊：「停！」"),
+ dict(n=18, season=3, slug="pip-and-the-wobbly-bridge", src="/workspace/pipbook18/pages", paid="pip-wobbly-bridge", sample="",
+  en="Pip and the Wobbly Bridge", zh="皮皮和搖晃的橋", theme_en="saying what worries you", theme_zh="說出擔心",
+  kw="autumn picture book, worries and feelings story for kids",
+  sum_en="It's autumn, and chestnuts cover the ground across the stream. “I'll go first!” says Pip, jumping onto the log bridge. Creak! The log wobbles, and Rabbit's ears slowly droop. “I… I'm not in a hurry.” Robin flies back to her: “Rabbit, are you a little worried?” “The bridge wobbles. I'm scared I'll fall.” Pip steps down: “Then I don't need to be first.” Together, step by step, they cross, and the first chestnut goes to Rabbit. A gentle story about saying what worries you.",
+  sum_zh="秋天，小溪對岸掉滿了栗子。皮皮跳上獨木橋，吱呀——兔子的耳朵卻垂了下來。知更鳥輕輕問：「兔子，你是不是有一點擔心？」說出擔心，朋友就會陪著你。",
+  short_en="The log bridge wobbles, and Rabbit's ears droop. “Are you a little worried?” Say you're scared, and a friend stays.",
+  short_zh="獨木橋吱呀吱呀地晃，兔子的耳朵垂了下來。說出擔心，就不慌！"),
 ]
 
 E = html.escape
@@ -130,12 +176,15 @@ BUNDLES = [b for b in [
  dict(id="season-2", season=2, books=[7, 8, 9, 10, 11, 12], url=BUNDLE_S2, price=BUNDLE_S2_PRICE, fan=[9, 12, 8],
   en="Pip Books 7–12 in one bundle", zh="皮皮第 7–12 集套裝",
   btn_en=f"Get Books 7–12 · US${BUNDLE_S2_PRICE}", label_en="Season 2 · Books 7–12", label_zh="第二輯"),
+ dict(id="season-3", season=3, books=[13, 14, 15, 16, 17, 18], url=BUNDLE_S3, price=BUNDLE_S3_PRICE, fan=[14, 13, 16],
+  en="Pip Books 13–18 in one bundle", zh="皮皮第 13–18 集套裝",
+  btn_en=f"Get Books 13–18 · US${BUNDLE_S3_PRICE}", label_en="Season 3 · Books 13–18", label_zh="第三輯"),
 ] if b["url"]]   # a bundle without a URL is hidden everywhere
 
-ZH_NUM = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"]
+ZH_NUM = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八"]
 
 def season_of(b):
-    return b.get("season") or (1 if b["n"] <= 6 else 2)
+    return b.get("season") or (1 if b["n"] <= 6 else 2 if b["n"] <= 12 else 3)
 
 def status_of(b):
     return b.get("status", "live")
@@ -318,7 +367,7 @@ def book_page(b):
     img = f"{SITE}/img/{b['slug']}/og.jpg"
     title = f"{b['en']} {b['zh']} · Bilingual Chinese English Picture Book, Ages 3–6"
     desc = (f"Book {b['n']} of Pip the mole's stories: a bilingual English + Traditional Chinese children's picture book "
-            f"(PDF) about {b['theme_en']}, for toddlers and preschoolers aged 3–6. {b['short_en']} Free sample available.")
+            f"(PDF) about {b['theme_en']}, for toddlers and preschoolers aged 3–6. {b['short_en']}" + (" Free sample available." if b.get("sample") else ""))
     kw = f"{b['en']}, {b['zh']}, {b['kw']}, " + BASE_KW
     pages = "\n".join(
         f'<img src="../img/{b["slug"]}/page-{i}.webp" width="720" height="960" loading="lazy" decoding="async" '
@@ -333,16 +382,23 @@ def book_page(b):
     else:     # Books 7–12 until their bundle is live: point to the Books 1–6 bundle
         upsell = (f'<p class="upsell">Also available: <a href="{BUNDLE}{UTM}">the Pip bundle of Books 1–6 for US$9.99</a> '
                   f'· <span lang="zh-Hant">另有<a href="{BUNDLE}{UTM}">皮皮第 1–6 集套裝 US$9.99</a></span></p>')
+    if b.get("sample"):
+        sample_top = f'<a class="btn free" href="{GR}{b["sample"]}{UTM}">Read the free sample<small lang="zh-Hant">免費試讀（封面＋頭 5 頁）</small></a>\n'
+        sample_bot = f'<a class="btn free" href="{GR}{b["sample"]}{UTM}">Read the free sample<small lang="zh-Hant">免費試讀</small></a>\n'
+        sample_note = (f'<p class="note">The free sample has the cover and the first 5 story pages. Book {b["n"]} also reads fine on its own. '
+                       f'<span lang="zh-Hant">免費試讀版包括封面和故事的頭 5 頁。</span></p>')
+    else:     # free sample not live yet
+        sample_top = sample_bot = ""
+        sample_note = f'<p class="note">Book {b["n"]} also reads fine on its own. <span lang="zh-Hant">每本都可以單獨閱讀。</span></p>'
     s = head(title, desc, kw, url, img, "book")
     s += f"""<main>
 <div class="book">
 <div class="cover"><img src="../img/{b['slug']}/cover.webp" width="600" height="800" alt="Cover of {E(b['en'])} / {b['zh']}: Pip the mole and friends"></div>
 <div>
-<p class="note">Book {b['n']} · <span lang="zh-Hant">第{["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"][b['n']-1]}集</span></p>
+<p class="note">Book {b['n']} · <span lang="zh-Hant">第{ZH_NUM[b['n']-1]}集</span></p>
 <h1>{E(b['en'])}<span class="zh" lang="zh-Hant">{b['zh']}</span></h1>
 <div class="cta top">
-<a class="btn free" href="{GR}{b['sample']}{UTM}">Read the free sample<small lang="zh-Hant">免費試讀（封面＋頭 5 頁）</small></a>
-<a class="btn buy" href="{GR}{b['paid']}{UTM}">Get the full book US$4.99<small lang="zh-Hant">購買完整版 US$4.99</small></a>
+{sample_top}<a class="btn buy" href="{GR}{b['paid']}{UTM}">Get the full book US$4.99<small lang="zh-Hant">購買完整版 US$4.99</small></a>
 </div>
 {upsell}
 <p class="lead">{E(b['sum_en'])}</p>
@@ -360,10 +416,9 @@ def book_page(b):
 <div class="pages">
 {pages}
 </div>
-<p class="note">The free sample has the cover and the first 5 story pages. Book {b['n']} also reads fine on its own. <span lang="zh-Hant">免費試讀版包括封面和故事的頭 5 頁。</span></p>
+{sample_note}
 <div class="cta">
-<a class="btn free" href="{GR}{b['sample']}{UTM}">Read the free sample<small lang="zh-Hant">免費試讀</small></a>
-<a class="btn buy" href="{GR}{b['paid']}{UTM}">Get the full book US$4.99<small lang="zh-Hant">購買完整版 US$4.99</small></a>
+{sample_bot}<a class="btn buy" href="{GR}{b['paid']}{UTM}">Get the full book US$4.99<small lang="zh-Hant">購買完整版 US$4.99</small></a>
 </div>
 {upsell}
 <h2>More Pip books · <span lang="zh-Hant">更多皮皮繪本</span></h2>
@@ -547,10 +602,10 @@ def make_og_collage():
     if out.exists() and not os.environ.get("REIMG"):
         return
     bg = Image.new("RGB", (1200, 630), (251, 246, 236))
-    w, h = 144, 192   # up to 12 covers, 4 × 3 grid
-    for i, b in enumerate(live_books()[:12]):
+    w, h = 96, 128   # up to 18 covers, 6 × 3 grid
+    for i, b in enumerate(live_books()[:18]):
         c = Image.open(ROOT / "img" / b["slug"] / "cover.webp").convert("RGB").resize((w, h), Image.LANCZOS)
-        bg.paste(c, (36 + (i % 4) * (w + 12), 21 + (i // 4) * (h + 12)))
+        bg.paste(c, (30 + (i % 6) * (w + 12), 105 + (i // 6) * (h + 12)))
     d = ImageDraw.Draw(bg)
     fp = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"
     f1 = ImageFont.truetype(fp, 50, index=2); f2 = ImageFont.truetype(fp, 30, index=2); f3 = ImageFont.truetype(fp, 34, index=2)
@@ -582,6 +637,8 @@ def book_card(b, newest):
 </div>
 </article>"""
     tag = ' <span class="tag">New <span lang="zh-Hant">新</span></span>' if b is newest else ""
+    sample_link = (f'<a href="{GR}{b["sample"]}{UTM}">Free sample<span class="zh" lang="zh-Hant">免費試讀</span></a>\n' if b.get("sample")
+                   else '<span>Free sample soon<span class="zh" lang="zh-Hant">免費試讀即將推出</span></span>\n')
     return f"""<article class="card">
 <a class="cover" href="{slug}/">{img}</a>
 <div class="card-body">
@@ -590,8 +647,7 @@ def book_card(b, newest):
 <p class="zh" lang="zh-Hant">{b['zh']}</p>
 {theme}
 <div class="card-foot">
-<a href="{GR}{b['sample']}{UTM}">Free sample<span class="zh" lang="zh-Hant">免費試讀</span></a>
-<a class="price" href="{GR}{b['paid']}{UTM}" aria-label="Buy {E(b['en'])}, US${price_of(b)}">US${price_of(b)}</a>
+{sample_link}<a class="price" href="{GR}{b['paid']}{UTM}" aria-label="Buy {E(b['en'])}, US${price_of(b)}">US${price_of(b)}</a>
 </div>
 </div>
 </article>"""
@@ -604,12 +660,19 @@ def index_page():
     multi = len(BUNDLES) > 1
     title = "Pip the Mole 皮皮繪本 · Bilingual Chinese English Picture Books, Ages 3–6 · Free Samples & Bundle" + ("s" if multi else "")
     if multi:
-        ogtitle = f"Pip the Mole 皮皮繪本 · {n_live} bilingual picture books for ages 3–6 · two 6-book sets from US${min_bundle}"
+        k = len(BUNDLES)
+        k_en = ["", "one", "two", "three", "four", "five"][k]
+        k_zh = ["", "一", "兩", "三", "四", "五"][k]
+        rng = [f"{x['books'][0]}–{x['books'][-1]}" for x in BUNDLES]
+        rng_en = ", ".join(f"Books {r}" for r in rng[:-1]) + f" or Books {rng[-1]}" if k > 2 else f"Books {rng[0]} or Books {rng[1]}"
+        rng_short = ", ".join(rng[:-1]) + f" or {rng[-1]}" if k > 2 else f"{rng[0]} or {rng[1]}"
+        rng_zh = "、".join(f"第 {r} 集" for r in rng)
+        ogtitle = f"Pip the Mole 皮皮繪本 · {n_live} bilingual picture books for ages 3–6 · {k_en} 6-book sets from US${min_bundle}"
         desc = (f"{n_live} bilingual picture books for kids aged 3–6, English + Traditional Chinese on every page. "
-                f"Read a free sample of any book, or get a 6-book set (Books 1–6 or Books 7–12) from US${min_bundle}. "
-                f"中英對照雙語繪本，共 {n_live} 本：每本免費試讀，或者買六本套裝（第 1–6 集、第 7–12 集兩套）。")
-        cta = f'Get a 6-book set · Books 1–6 or 7–12 · <span lang="zh-Hant">六本套裝（兩套）</span> US${min_bundle}+'
-        cta_short = f'Get a 6-book set · <span lang="zh-Hant">六本套裝（兩套）</span> US${min_bundle}+'   # sticky bar: keep to one line on phones
+                f"Read a free sample of any book, or get a 6-book set ({rng_en}) from US${min_bundle}. "
+                f"中英對照雙語繪本，共 {n_live} 本：每本免費試讀，或者買六本套裝（{rng_zh}{k_zh}套）。")
+        cta = f'Get a 6-book set · Books {rng_short} · <span lang="zh-Hant">六本套裝（{k_zh}套）</span> US${min_bundle}+'
+        cta_short = f'Get a 6-book set · <span lang="zh-Hant">六本套裝（{k_zh}套）</span> US${min_bundle}+'   # sticky bar: keep to one line on phones
     else:
         ogtitle = f"Pip the Mole 皮皮繪本 · {n_live} bilingual picture books for ages 3–6 · 6-book set from US${min_bundle}"
         desc = (f"{n_live} bilingual picture books for kids aged 3–6, English + Traditional Chinese on every page. "
@@ -617,6 +680,13 @@ def index_page():
         cta = f'Get a 6-book set · <span lang="zh-Hant">六本套裝</span> US${min_bundle}+'
         cta_short = cta
 
+    no_sample = [b["n"] for b in live if not b.get("sample")]
+    if no_sample:   # a free sample is not live yet for some books
+        ns = " and ".join(str(n) for n in no_sample)
+        free_lede = (f'<p class="lede" id="free">Every book has a free PDF sample (Book{"s" if len(no_sample) > 1 else ""} {ns}: coming soon).'
+                     f'<span class="zh" lang="zh-Hant">每本都有免費試讀（第 {"、".join(str(n) for n in no_sample)} 集即將推出）。</span></p>')
+    else:
+        free_lede = '<p class="lede" id="free">Every book has a free PDF sample.<span class="zh" lang="zh-Hant">每本都有免費試讀。</span></p>'
     # Books grid: one grid per season, series order, each book once
     seasons = sorted({season_of(b) for b in BOOKS})
     blocks = []
@@ -715,7 +785,7 @@ def index_page():
 <section class="section" id="books">
 <div class="wrap">
 <div class="section-head"><h2>The books</h2><p class="zh" lang="zh-Hant">全部繪本</p>
-<p class="lede" id="free">Every book has a free PDF sample.<span class="zh" lang="zh-Hant">每本都有免費試讀。</span></p></div>
+{free_lede}</div>
 {chr(10).join(blocks)}
 </div>
 </section>
@@ -803,7 +873,7 @@ def main():
         + "".join(f"  <url><loc>{u}</loc><lastmod>2026-10-01</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
     (ROOT / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n", encoding="utf-8")
     (ROOT / ".nojekyll").write_text("")
-    json.dump([{**{k: b[k] for k in ("n", "slug", "en", "zh", "paid", "sample")}, "season": season_of(b), "status": status_of(b),
+    json.dump([{**{k: b.get(k, "") for k in ("n", "slug", "en", "zh", "paid", "sample")}, "season": season_of(b), "status": status_of(b),
                 "theme_en": b["theme_en"], "theme_zh": b["theme_zh"], "price": price_of(b)} for b in live_books()],
               open(ROOT / "books.json", "w"), ensure_ascii=False, indent=1)
 
