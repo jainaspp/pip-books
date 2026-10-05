@@ -31,7 +31,7 @@ BUNDLE = "https://jainaspark4.gumroad.com/l/imzzp"
 BUNDLE_S2 = "https://jainaspark4.gumroad.com/l/puwhe"
 BUNDLE_S2_PRICE = "9.99"   # confirm against Gumroad before setting BUNDLE_S2
 # Books 13–18 bundle (Season 3): leave "" until it is live on Gumroad, then paste its URL here and rebuild.
-BUNDLE_S3 = ""
+BUNDLE_S3 = "https://jainaspark4.gumroad.com/l/nnjxnb"
 BUNDLE_S3_PRICE = "9.99"   # confirm against Gumroad before setting BUNDLE_S3
 EMAIL = "jainaspp@gmail.com"
 REDBUBBLE = "https://www.redbubble.com/people/jainaspp/shop?collections=4588651"
@@ -151,14 +151,14 @@ BOOKS = [
   sum_zh="獾婆婆請皮皮送小燈籠回家。皮皮答應了：「天黑前一定送到！」路邊有一大堆金黃落葉，嚓嚓嚓……好想跳！皮皮把燈籠抱緊：「送完燈籠，我們再回來跳！」",
   short_en="Pip promises to take Old Badger's lantern home before dark. Then he sees a big pile of crunchy leaves…",
   short_zh="皮皮答應天黑前把小燈籠送到。路邊的落葉堆嚓嚓嚓，好想跳！"),
- dict(n=17, season=3, slug="pip-and-the-fog", src="/workspace/pipbook17/pages", paid="pip-fog", sample="",
+ dict(n=17, season=3, slug="pip-and-the-fog", src="/workspace/pipbook17/pages", paid="pip-fog", sample="pip-fog-free-sample",
   en="Pip and the Fog", zh="皮皮和大霧", theme_en="staying close to friends", theme_zh="跟緊同伴",
   kw="autumn picture book, staying safe story for kids",
   sum_en="One autumn morning, thick fog rolls over the hill, white and soft like a big cotton ball. Sniff, sniff! Rabbit smells clover and hops off into the white fog. “Me too!” says Pip. “Stop!” shouts Pom. She remembers the snowy day when she couldn't find her home. “Let's hold each other's tails as we walk. Then nobody gets lost.” Step by step, nobody lets go, until the fog lifts over a big patch of green clover. A gentle story about staying close to friends.",
   sum_zh="秋天的山丘，忽然起了大霧。兔子聞到三葉草的香味，一跳，就跳進了白霧裡……蓬蓬大聲喊：「停！」大家一個拉著一個的尾巴走，誰也不會走丟。",
   short_en="Thick fog covers the hill and Rabbit hops off after the smell of clover. “Stop!” shouts Pom.",
   short_zh="大霧裡，兔子一跳就跳進白霧裡。蓬蓬大聲喊：「停！」"),
- dict(n=18, season=3, slug="pip-and-the-wobbly-bridge", src="/workspace/pipbook18/pages", paid="pip-wobbly-bridge", sample="",
+ dict(n=18, season=3, slug="pip-and-the-wobbly-bridge", src="/workspace/pipbook18/pages", paid="pip-wobbly-bridge", sample="pip-wobbly-bridge-free-sample",
   en="Pip and the Wobbly Bridge", zh="皮皮和搖晃的橋", theme_en="saying what worries you", theme_zh="說出擔心",
   kw="autumn picture book, worries and feelings story for kids",
   sum_en="It's autumn, and chestnuts cover the ground across the stream. “I'll go first!” says Pip, jumping onto the log bridge. Creak! The log wobbles, and Rabbit's ears slowly droop. “I… I'm not in a hurry.” Robin flies back to her: “Rabbit, are you a little worried?” “The bridge wobbles. I'm scared I'll fall.” Pip steps down: “Then I don't need to be first.” Together, step by step, they cross, and the first chestnut goes to Rabbit. A gentle story about saying what worries you.",
