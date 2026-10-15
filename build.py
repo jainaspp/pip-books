@@ -237,6 +237,11 @@ FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">\n'
          '<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,600,100'
          '&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">')
 
+# Google AdSense Auto ads. One script in <head>; no manual <ins> units.
+ADSENSE = ('<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8392975944327076"\n'
+           '     crossorigin="anonymous"></script>')
+ADS_TXT = "google.com, pub-8392975944327076, DIRECT, f08c47fec0942fa0\n"
+
 # Shared design tokens (Art direction STYLE-SPEC v1)
 ROOT_CSS = """
 :root{--paper:#FBF6EC;--surface:#FFFDF8;--sage:#E7EDDF;--hairline:#EADFCB;--ink:#3B2F24;--muted:#6B5A48;
@@ -322,6 +327,7 @@ def head(title, desc, kw, url, img, ogtype="website", ogtitle=None, css=None, he
 <meta name="twitter:description" content="{E(desc)}">
 <meta name="twitter:image" content="{img}">
 {FONTS}
+{ADSENSE}
 {extra_head}<style>{css}</style>
 </head>
 {body}
@@ -872,6 +878,7 @@ def main():
     (ROOT / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"  <url><loc>{u}</loc><lastmod>2026-10-01</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
     (ROOT / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n", encoding="utf-8")
+    (ROOT / "ads.txt").write_text(ADS_TXT, encoding="utf-8")
     (ROOT / ".nojekyll").write_text("")
     json.dump([{**{k: b.get(k, "") for k in ("n", "slug", "en", "zh", "paid", "sample")}, "season": season_of(b), "status": status_of(b),
                 "theme_en": b["theme_en"], "theme_zh": b["theme_zh"], "price": price_of(b)} for b in live_books()],
