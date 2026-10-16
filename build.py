@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 """Build the static Pip books site. Run: python3 build.py (needs Pillow and the book page PNGs on the box).
 
-Everything on the homepage is driven by two lists below:
-  BOOKS   – one dict per book. Keys used by the homepage:
-            n (book number), season (1, 2, ...), status ("live" | "soon"),
-            slug, paid (Gumroad product slug), sample (Gumroad free-sample slug),
-            en / zh (titles), theme_en / theme_zh, optional tag_en (shorter theme for the card),
-            optional price (default PRICE).
+Pages are driven by BOOKS and BUNDLES:
+  /                homepage shelf — featured (latest) season only, three season entry cards, 3 FAQs
+  /season-N/       that season's story, six book cards, its bundle, links to the other seasons
+  /shop/           all singles + three bundles; checkout links go to Gumroad
+  /about/          PP O, how the books are read, AI illustration note, ages 3–6, contact
+  /{slug}/         book page: season badge, prev/next inside the season, 本季其餘, then other seasons
+FAQ stays on the homepage (#faq). This build does not write /faq/ or /books/.
+
+  BOOKS   – n, season, status ("live" | "soon"), slug, paid, sample, en/zh, theme_en/theme_zh,
+            optional tag_en, optional price (default PRICE).
             season defaults to 1 for Books 1–6 and 2 for Books 7–12; status defaults to "live".
             A "soon" book needs only n, season, status, slug, en, zh, theme_en, theme_zh
-            (it gets a card with "Coming soon", no links, no detail page).
-  BUNDLES – one dict per bundle (Gumroad slug, price, which books). Rendered on the sage band.
-Books 7–12 (Season 2) and 13–18 (Season 3) are in BOOKS. The Season 3 bundle entry is already in BUNDLES but hidden
-until BUNDLE_S3 is set to its Gumroad URL (one-line change; check BUNDLE_S3_PRICE matches Gumroad).
-A book with sample="" (free sample not live yet) gets no free-sample links; fill in its Gumroad slug once live.
-The Season 2 heading appears automatically once a season-2 book is in BOOKS.
+            (a card with "Coming soon", no links, no detail page).
+  BUNDLES – Gumroad URL, price, which books. A bundle with url "" is hidden everywhere.
+A book with sample="" gets no free-sample link until its Gumroad slug is filled in.
+Every Gumroad href keeps ?utm_source=pipsite. AdSense auto ads stay in each page <head>.
 """
 import html, os, json
+from datetime import date
 from pathlib import Path
+from PIL import Image, ImageFilter
 from PIL import Image, ImageFilter
 
 ROOT = Path(__file__).parent
@@ -231,77 +235,421 @@ def make_home_images():
     for k in ("together", "calm", "lesson"):
         if not (out / f"spot-{k}.webp").exists():
             Image.open(Path(SPOT_SRC) / f"{k}.webp").save(out / f"spot-{k}.webp", "WEBP", quality=80, method=6)
+    # Header mark: Pip centred in the calm spot, circled in CSS.
+    avatar = out / "pip-avatar.webp"
+    if not avatar.exists() or os.environ.get("REIMG"):
+        src = Image.open(out / "spot-calm.webp").convert("RGBA")
+        bg = Image.new("RGB", src.size, (251, 246, 236))
+        bg.paste(src, mask=src.split()[-1])
+        w, h = bg.size
+        side = min(w, h)
+        left, top = (w - side) // 2, (h - side) // 2
+        bg.crop((left, top, left + side, top + side)).resize((160, 160), Image.LANCZOS).save(avatar, "WEBP", quality=84, method=6)
 
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">\n'
          '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
          '<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,600,100'
-         '&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">')
+         '&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">')
 
 # Google AdSense Auto ads. One script in <head>; no manual <ins> units.
 ADSENSE = ('<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8392975944327076"\n'
            '     crossorigin="anonymous"></script>')
 ADS_TXT = "google.com, pub-8392975944327076, DIRECT, f08c47fec0942fa0\n"
 
-# Shared design tokens (Art direction STYLE-SPEC v1)
+# Short season lines for entry cards; the longer pair is the season-page narrative.
+# Copy stays in the site's written Traditional voice (not a rewrite of the book texts).
+SEASON_META = {
+ 1: dict(
+   tone_en="From the big dig to the first snow.",
+   tone_zh="從大挖掘到第一場雪。",
+   story_en="Pip, Robin and Rabbit share a hill: a hole that becomes a pond, then the first snow. Six calm bedtime stories about teamwork, sharing, saying sorry, and caring for someone small.",
+   story_zh="皮皮、知更鳥和兔子在同一座山丘。大洞後來變成小池塘，然後是第一場雪。六個平靜的睡前故事：一起合作、分享、說對不起，和關心小小的朋友。"),
+ 2: dict(
+   tone_en="Pom joins the hill, from winter to summer.",
+   tone_zh="蓬蓬加入山丘，從冬天到夏天。",
+   story_en="Winter, spring, then a hot summer day. Pom the hedgehog joins the hill. The friends say goodbye for now, try again, and dig one more spot in the circle.",
+   story_zh="冬天、春天，再到大熱天。刺蝟寶寶蓬蓬加入山丘。大家好好說再見、再試一次，也一起多留一個位子。"),
+ 3: dict(
+   tone_en="A steady light, and a new friend in the valley.",
+   tone_zh="一點不閃的光，河谷裡的新朋友。",
+   story_en="A light beyond the hill leads Pip, Robin, Rabbit and Pom into a wide valley, and to Old Badger's door. Six stories about saying hello, asking before helping, keeping a promise, and saying what worries you.",
+   story_zh="山丘那邊有一點不閃的光。四個好朋友走進新的河谷，敲開獾婆婆的門。六個故事：主動打招呼、先問再幫忙、守承諾、說出擔心。"),
+}
+
+def all_seasons():
+    return sorted({season_of(b) for b in BOOKS})
+
+def books_in(sn):
+    return sorted((b for b in BOOKS if season_of(b) == sn), key=lambda x: x["n"])
+
+def bundle_for(sn):
+    return next((x for x in BUNDLES if x["season"] == sn), None)
+
+def featured_season():
+    return max(season_of(b) for b in live_books())
+
+def min_bundle_price():
+    return min(BUNDLES, key=lambda x: float(x["price"]))["price"]
+
+def bundle_label():
+    return f"六本套裝 US${min_bundle_price()}+"
+
+def gum_slug(slug):
+    return f"{GR}{slug}{UTM}"
+
+def gum_url(url):
+    return f"{url}{UTM}"
+
+def depth_prefix(depth):
+    return "../" * depth
+
+def home_href(depth):
+    p = depth_prefix(depth)
+    return p if p else "./"
+
+def book_by_n(n):
+    return next(b for b in BOOKS if b["n"] == n)
+
+BASE_KW = "children's picture book, bilingual Chinese English picture book, Traditional Chinese, 中英雙語繪本, bedtime story, toddler, preschool, ages 3-6, read aloud, PDF ebook, Pip the mole"
+
+# ---------------------------------------------------------------------------
+# Visual system — Mood C「故事書架」. Tokens from the art direction.
 ROOT_CSS = """
 :root{--paper:#FBF6EC;--surface:#FFFDF8;--sage:#E7EDDF;--hairline:#EADFCB;--ink:#3B2F24;--muted:#6B5A48;
 --accent:#B8641C;--accent-hover:#8A4B12;--moss:#5E7A4E;
+--s1:#6FA84A;--s1b:#E8B83A;--s2:#C4453A;--s2b:#E2862C;--s3:#EE9566;--s3b:#1F2C66;
 --font-head:'Fraunces','Noto Sans TC','Noto Sans CJK TC',Georgia,serif;
 --font-body:'Noto Sans TC','Noto Sans CJK TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;
---maxw:1080px;--textw:620px;--section:96px;--gap:32px;--r-hero:24px;--r-card:16px;--r-img:12px;
+--maxw:1080px;--textw:640px;--r-card:16px;--r-img:12px;
 --shadow:0 6px 20px rgba(59,47,36,.08);
 --wave:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='16' viewBox='0 0 120 16'%3E%3Cpath d='M0 8 Q15 2 30 8 T60 8 T90 8 T120 8' fill='none' stroke='%23EADFCB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")}
-@media (max-width:720px){:root{--section:56px;--gap:16px}}
 *,*::before,*::after{box-sizing:border-box}html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
-body{margin:0;font:400 17px/28px var(--font-body);color:var(--ink);background:var(--paper)}
+body{margin:0;font:400 17px/1.65 var(--font-body);color:var(--ink);background:var(--paper)}
 img{max-width:100%;height:auto}
 a{color:var(--accent)}a:hover{color:var(--accent-hover)}
-h1,h2,h3{font-family:var(--font-head);font-weight:600;font-variation-settings:'SOFT' 100;color:var(--ink);letter-spacing:-.005em}
-.brand{color:var(--ink);text-decoration:none;display:inline-flex;align-items:baseline;gap:8px}
-.brand b{font:600 22px/28px var(--font-head);font-variation-settings:'SOFT' 100}
-.brand span{font-size:15px;color:var(--muted)}
-.brand:hover{color:var(--ink)}
-@media (max-width:720px){body{font-size:16px;line-height:26px}}
+h1,h2,h3{font-family:var(--font-head);font-weight:600;font-variation-settings:'SOFT' 100;color:var(--ink);letter-spacing:-.01em;margin:0}
+p{margin:0}
+.skip{position:absolute;left:-999px;top:8px}
+.skip:focus{left:12px;z-index:40;background:var(--surface);color:var(--ink);padding:8px 12px;border-radius:8px}
+.wrap{max-width:calc(var(--maxw) + 48px);margin:0 auto;padding:0 24px}
+.zh{color:var(--muted);font-weight:400}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media (max-width:720px){body{font-size:16px}.wrap{padding:0 16px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 """
 
-# Book detail pages: same structure as before, new palette and type.
+SHELL_CSS = """
+header.site-head{position:sticky;top:0;z-index:20;background:rgba(251,246,236,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--hairline)}
+.nav-inner{max-width:calc(var(--maxw) + 48px);margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;gap:10px}
+.brand:hover{color:var(--ink);text-decoration:none}
+.avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;flex:none;box-shadow:0 0 0 2px #fffdf8,0 0 0 3px var(--hairline)}
+.brand-name{display:flex;flex-direction:column;line-height:1.15}
+.brand-name b{font:600 18px/1.2 var(--font-head);font-variation-settings:'SOFT' 100}
+.brand-name span{font-size:13px;color:var(--muted);font-weight:400}
+.nav-links{display:flex;align-items:center;gap:22px;list-style:none;margin:0;padding:0;font-size:15px}
+.nav-links a,.menu summary{color:var(--ink);text-decoration:none;font-weight:500;cursor:pointer}
+.nav-links a:hover,.menu summary:hover{color:var(--accent);text-decoration:none}
+.nav-links a[aria-current="page"],.menu summary[aria-current="page"]{color:var(--accent);font-weight:700}
+.menu{position:relative}
+.menu summary{list-style:none}
+.menu summary::-webkit-details-marker{display:none}
+.menu summary::after{content:"";display:inline-block;margin-left:5px;border:4px solid transparent;border-top-color:currentColor;transform:translateY(2px)}
+.menu .pop{position:absolute;left:0;top:calc(100% + 8px);background:var(--surface);border:1px solid var(--hairline);border-radius:12px;box-shadow:var(--shadow);min-width:230px;padding:6px;z-index:30;display:flex;flex-direction:column}
+.menu .pop a{padding:8px 10px;border-radius:8px;font-weight:600}
+.menu .pop a:hover{background:var(--paper)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:8px}
+.dot.s1{background:var(--s1)}.dot.s2{background:var(--s2)}.dot.s3{background:var(--s3)}
+.section{padding:28px 0 8px}
+.pill{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:0;background:var(--accent);color:#FFFDF8;font:700 17px/1.25 var(--font-body);padding:12px 22px;border-radius:999px;text-decoration:none;border:1.5px solid var(--accent);text-align:center}
+.pill small{display:block;font-weight:500;font-size:12px;line-height:1.3;opacity:.92}
+.pill:hover{background:var(--accent-hover);border-color:var(--accent-hover);color:#FFFDF8;text-decoration:none}
+.pill.sample{background:var(--surface);color:var(--moss);border-color:var(--moss)}
+.pill.sample:hover{background:#F4F7F0;color:var(--moss)}
+.textlink{font-weight:700;color:var(--moss);text-decoration:none}
+.textlink:hover{color:#3E5634;text-decoration:underline;text-underline-offset:3px}
+.checkout-note{margin-top:8px;font-size:14px;line-height:1.45;color:var(--muted)}
+.season-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.season-chips a{display:inline-flex;align-items:baseline;gap:6px;border-radius:999px;padding:8px 14px;font-weight:700;text-decoration:none;border:1.5px solid transparent;color:var(--ink)}
+.season-chips a small{font-weight:500;font-size:12px}
+.season-chips a.s1{background:#E7F3DC;color:#2C5222;border-color:#6FA84A}
+.season-chips a.s2{background:#F8E3DC;color:#8A2E28;border-color:#C4453A}
+.season-chips a.s3{background:#FDE6D8;color:#8A4524;border-color:#EE9566}
+.season-chips a:hover{text-decoration:none;filter:brightness(.98)}
+.hero-fan{position:relative;height:320px;width:100%}
+.hero-fan a{position:absolute;display:block;width:158px;text-decoration:none}
+.hero-fan img{display:block;width:100%;height:auto;border-radius:12px;box-shadow:var(--shadow);aspect-ratio:3/4;object-fit:cover;background:#efe6d4}
+.hero-fan a:nth-child(1){left:4%;top:28px;transform:rotate(-7deg)}
+.hero-fan a:nth-child(2){left:50%;top:0;margin-left:-79px;z-index:2}
+.hero-fan a:nth-child(3){right:4%;top:32px;transform:rotate(7deg)}
+.shelf-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 20px;margin:0 0 18px;padding-top:10px;border-top:4px solid var(--s1);flex-wrap:wrap}
+.shelf-head.s2{border-top-color:var(--s2)}.shelf-head.s3{border-top-color:var(--s3)}
+.shelf-head h2{font-size:28px;line-height:1.2}
+.shelf-head h2 a{color:var(--ink);text-decoration:none}
+.shelf-head h2 a:hover{color:var(--accent)}
+.shelf-head .range{margin-top:4px;color:var(--muted);font-size:14px}
+.shelf-link{font-weight:700;color:var(--accent);text-decoration:none;text-align:right}
+.shelf-link small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+.shelf-link:hover{text-decoration:underline;text-underline-offset:3px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-items:stretch}
+.card{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow);padding:12px 12px 14px;display:flex;flex-direction:column;height:100%}
+.card .cover img{display:block;width:100%;border-radius:var(--r-img);aspect-ratio:3/4;object-fit:cover;background:#efe6d4}
+.card-body{display:flex;flex-direction:column;flex:1;padding:12px 4px 0}
+.eyebrow{font-size:13px;line-height:1.4;color:var(--muted);margin:0 0 4px}
+.card h3{font-size:20px;line-height:1.3}
+.card h3 a{color:var(--ink);text-decoration:none}
+.card h3 a:hover{text-decoration:underline;text-underline-offset:3px}
+.en-name{margin:2px 0 0;color:var(--muted);font-size:14px;line-height:1.35}
+.chip-theme{margin:10px 0 0;font-size:13px;line-height:1.35}
+.chip-theme .th{display:inline-block;border-radius:999px;padding:2px 8px;font-weight:700;background:rgba(111,168,74,.16);color:#2C5222}
+.card.s2 .chip-theme .th{background:rgba(196,69,58,.12);color:#8A2E28}
+.card.s3 .chip-theme .th{background:rgba(238,149,102,.22);color:#8A4524}
+.chip-theme .en{display:block;margin-top:4px;color:var(--muted);font-weight:400}
+.tag{font-size:11px;font-weight:700;color:var(--accent);background:rgba(184,100,28,.12);border-radius:999px;padding:1px 7px;margin-left:6px}
+.card-actions{margin-top:auto;padding-top:12px;display:flex;gap:8px}
+.btn-sample,.btn-buy{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;text-decoration:none;border-radius:999px;padding:8px 4px;font-weight:700;font-size:14px;line-height:1.2;min-height:44px}
+.btn-sample small,.btn-buy small{display:block;font-weight:500;font-size:11px;line-height:1.2}
+.btn-sample{color:var(--moss);background:var(--surface);border:1.5px solid var(--moss)}
+.btn-sample:hover{background:#F4F7F0;color:var(--moss);text-decoration:none}
+.btn-buy{color:#FFFDF8;background:var(--accent);border:1.5px solid var(--accent)}
+.btn-buy:hover{background:var(--accent-hover);color:#FFFDF8;text-decoration:none}
+.btn-buy small{color:rgba(255,253,248,.9)}
+.soon-label{color:var(--muted);font-size:14px;font-weight:700}
+.entries{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px}
+.entry{display:flex;flex-direction:column;background:var(--surface);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;text-decoration:none;color:var(--ink);min-height:100%}
+.entry:hover{transform:translateY(-2px);color:var(--ink);text-decoration:none}
+.entry .band{height:7px;display:block;background:linear-gradient(90deg,var(--s1),var(--s1b))}
+.entry.s2 .band{background:linear-gradient(90deg,var(--s2),var(--s2b))}
+.entry.s3 .band{background:linear-gradient(90deg,var(--s3),var(--s3b))}
+.entry .mini{display:flex;justify-content:center;align-items:flex-end;height:112px;padding-top:14px}
+.entry .mini img{width:70px;height:94px;object-fit:cover;border-radius:8px;box-shadow:var(--shadow);margin:0 -8px;background:#efe6d4}
+.entry .mini img:nth-child(1){transform:rotate(-6deg)}
+.entry .mini img:nth-child(2){position:relative;z-index:1;width:76px;height:102px}
+.entry .mini img:nth-child(3){transform:rotate(6deg)}
+.entry .body{display:flex;flex-direction:column;gap:4px;flex:1;padding:12px 16px 16px}
+.entry strong{font-family:var(--font-head);font-size:26px;font-weight:600;line-height:1.2}
+.entry .tone{font-size:14px;line-height:1.45}
+.entry .tone .zh{display:block}
+.entry .go{margin-top:auto;padding-top:10px;font-weight:700;color:var(--accent)}
+.entry .go small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+footer.site{margin-top:36px;padding:28px 0 40px;color:var(--muted);font-size:14px;line-height:1.55;background:var(--wave) repeat-x top/120px 16px}
+footer.site .wrap{padding-top:18px}
+.foot-nav{display:flex;flex-wrap:wrap;gap:8px 16px;margin:14px 0}
+.foot-nav a{color:var(--ink);font-weight:700;text-decoration:none}
+.foot-nav a:hover{text-decoration:underline;text-underline-offset:3px}
+footer.site p{margin-top:8px}
+.other-label{margin-top:16px;font-weight:700;color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{display:inline-block;padding:8px 14px;border:1px solid var(--hairline);border-radius:999px;color:var(--ink);background:transparent;text-decoration:none;font-size:14px;line-height:1.4}
+.chip:hover{border-color:var(--muted);color:var(--ink);text-decoration:none}
+footer.site .note{font-size:13px}
+.sticky{position:fixed;left:0;right:0;bottom:0;z-index:25;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:rgba(251,246,236,.96);box-shadow:0 -4px 16px rgba(59,47,36,.08);display:none;transform:translateY(110%);transition:transform .25s}
+.sticky .pill{width:100%;padding:12px 16px}
+.mt14{margin-top:14px}.mt16{margin-top:16px}.season-block{margin-top:28px}
+.sticky.show{transform:none}
+@media (max-width:800px){
+ .grid{grid-template-columns:repeat(2,1fr);gap:12px}
+ .hero-fan{height:200px;max-width:none}
+ .hero-fan a{width:31%}
+ .hero-fan a:nth-child(1){left:1%;top:18px}
+ .hero-fan a:nth-child(2){left:50%;top:0;margin-left:-15.5%}
+ .hero-fan a:nth-child(3){right:1%;top:22px}
+ .shelf-head h2{font-size:22px}
+ .card{padding:8px}
+ .card h3{font-size:17px}
+ .card-body{padding:10px 2px 0}
+ .btn-sample,.btn-buy{font-size:13px;padding:7px 2px}
+}
+@media (max-width:720px){
+ .nav-inner{flex-wrap:wrap;padding:10px 16px;gap:8px}
+ .nav-links{width:100%;flex-wrap:wrap;gap:8px 14px;font-size:14px;padding-bottom:2px}
+ .brand-name b{font-size:17px}
+ .sticky{display:block}
+ body.has-sticky{padding-bottom:84px}
+}
+"""
+
+HOME_CSS = """
+.hero{padding:18px 0 8px}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(240px,.85fr);grid-template-areas:"copy fan" "why fan";gap:8px 36px;align-items:center}
+.hero-copy{grid-area:copy}
+.why-pills{grid-area:why;align-self:start}
+.hero-fan{grid-area:fan}
+.zh-hero{display:block;font-size:46px;line-height:1.15;font-weight:600}
+.en-hero{display:block;margin-top:4px;font-family:var(--font-head);font-weight:600;font-size:28px;line-height:1.25;color:var(--muted)}
+.hero .meta{margin-top:12px;color:var(--muted);font-size:15px}
+.hero-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;margin-top:18px}
+.why-pills{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:14px 0 0;padding:0}
+.why-pills li{background:var(--surface);border:1px solid var(--hairline);border-radius:999px;padding:6px 12px;font-size:14px;line-height:1.4}
+.why-pills .en{color:var(--muted);margin-left:4px}
+.shelf-note{margin-top:14px;color:var(--muted);font-size:14px}
+.shelf-note .en{display:block}
+.bundle-jump{margin-top:8px;font-weight:700}
+.faq{max-width:760px;margin-top:8px}
+details.qa{border-top:1px solid var(--hairline)}
+details.qa:last-of-type{border-bottom:1px solid var(--hairline)}
+details.qa summary{list-style:none;cursor:pointer;padding:16px 36px 16px 0;position:relative}
+details.qa summary::-webkit-details-marker{display:none}
+details.qa summary::after{content:"";position:absolute;right:8px;top:22px;width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg)}
+details.qa[open] summary::after{transform:rotate(-135deg);top:26px}
+details.qa .q{display:block;font-weight:700}
+details.qa .zh{display:block;font-size:15px}
+details.qa .a{padding:0 36px 16px 0;max-width:var(--textw)}
+details.qa .a .zh{display:block;margin-top:6px}
+.faq-more{margin-top:14px;font-weight:700}
+@media (max-width:800px){
+ .hero-grid{grid-template-columns:1fr;grid-template-areas:"copy" "fan" "why";gap:12px}
+ .zh-hero{font-size:34px}
+ .en-hero{font-size:22px}
+ .hero-actions{flex-direction:column;align-items:stretch}
+ .hero-actions .pill{width:100%}
+ .hero-actions .textlink{text-align:center}
+}
+"""
+
+PAGE_CSS = """
+.kicker{margin:14px 0;font-size:14px;font-weight:700}
+.kicker a{color:var(--muted);text-decoration:none}
+.kicker a:hover{color:var(--accent)}
+.season-top{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(220px,.8fr);gap:12px 20px;align-items:center;border-radius:20px;box-shadow:var(--shadow);border-top:8px solid var(--s1);background:linear-gradient(180deg,rgba(111,168,74,.18),var(--surface) 58%);margin-top:8px}
+.season-top.s2{border-top-color:var(--s2);background:linear-gradient(180deg,rgba(196,69,58,.14),var(--surface) 58%)}
+.season-top.s3{border-top-color:var(--s3);background:linear-gradient(180deg,rgba(238,149,102,.22),var(--surface) 58%)}
+.season-copy{padding:26px 8px 22px 26px}
+.season-copy h1{font-size:40px;line-height:1.15}
+.season-copy h1 .en{display:block;margin-top:4px;font-size:22px;color:var(--muted);font-weight:600}
+.season-copy .story{margin-top:12px;max-width:62ch}
+.season-copy .story .zh{display:block;margin-top:6px}
+.season-copy .meta{margin-top:10px;color:var(--muted);font-size:14px}
+.hero-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;margin-top:16px}
+.season-top .hero-fan{margin-right:12px}
+.page-h1{font-size:40px;line-height:1.15;margin-top:18px}
+.page-h1 .en{display:block;margin-top:4px;font-size:22px;color:var(--muted);font-weight:600}
+.lede{margin-top:12px;max-width:68ch}
+.lede .zh{display:block;margin-top:4px}
+.bundle-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px;margin-top:16px}
+.bcard{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;border-top:8px solid var(--s1)}
+.bcard.s2{border-top-color:var(--s2)}.bcard.s3{border-top-color:var(--s3)}
+.bcard .pad{padding:16px 16px 18px;display:flex;flex-direction:column;gap:8px;flex:1}
+.thumbs{display:flex;gap:8px}
+.thumbs img{width:32%;border-radius:8px;aspect-ratio:3/4;object-fit:cover;background:#efe6d4}
+.price-big{font:600 42px/1.1 var(--font-head);font-variation-settings:'SOFT' 100}
+.was{color:var(--muted);font-size:14px}
+.bcard .pill{margin-top:auto}
+.bundle-repeat{margin-top:22px;background:var(--surface);border-radius:16px;box-shadow:var(--shadow);padding:20px 22px;border-left:8px solid var(--s1)}
+.bundle-repeat.s2{border-left-color:var(--s2)}.bundle-repeat.s3{border-left-color:var(--s3)}
+.bundle-repeat .price-big{margin:6px 0}
+.quiet{margin-top:42px;padding-top:22px;border-top:1px solid var(--hairline)}
+.quiet h2{font-size:22px;color:var(--muted)}
+.prose{max-width:68ch;padding-bottom:12px}
+.prose h2{font-size:26px;margin:1.3em 0 .35em}
+.prose p{margin:0 0 10px}
+.prose .zh{display:block}
+.about-links{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:8px;font-weight:700}
+@media (max-width:800px){
+ .season-top{grid-template-columns:1fr}
+ .season-copy{padding:20px 16px 4px}
+ .season-copy h1,.page-h1{font-size:32px}
+ .season-top .hero-fan{margin:0 auto 12px}
+ .price-big{font-size:36px}
+ .hero-actions{flex-direction:column;align-items:stretch}
+ .hero-actions .pill{width:100%}
+}
+"""
+
 BOOK_CSS = """
-header,main,footer{max-width:960px;margin:0 auto;padding:0 20px}
-header{padding-top:20px;padding-bottom:8px}
-h1{font-size:2.1rem;line-height:1.2;margin:.3em 0 .3em}
-h1 .zh{display:block;font:400 1.6rem/1.4 var(--font-body);color:var(--muted);margin-top:6px}
-h2{font-size:1.5rem;line-height:1.3;margin:1.8em 0 .6em}
-h2 span[lang]{font:400 1.1rem var(--font-body);color:var(--muted)}
-.lead{margin:.3em 0 1em}
-.lead[lang="zh-Hant"]{color:var(--muted)}
-.book{display:grid;grid-template-columns:minmax(0,300px) 1fr;gap:32px;align-items:start;margin-top:12px}
-.book .cover img{width:100%;height:auto;border-radius:var(--r-img);box-shadow:var(--shadow);aspect-ratio:3/4;display:block}
-dl.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:.94rem;margin:16px 0;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow);padding:16px 20px}
+.book-wrap{max-width:960px}
+.back{margin:12px 0;font-size:14px;font-weight:700}
+.back a{color:var(--muted);text-decoration:none}
+.back a:hover{color:var(--accent)}
+.book{display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);grid-template-areas:"cover intro" "cover seq" "cover buy";gap:10px 28px;align-items:start;margin-top:4px}
+.cover{grid-area:cover}
+.book-intro{grid-area:intro}
+.seq{grid-area:seq}
+.book-buy{grid-area:buy}
+.cover img{width:100%;border-radius:12px;box-shadow:var(--shadow);aspect-ratio:3/4;object-fit:cover;display:block;background:#efe6d4}
+.badge{display:inline-flex;gap:6px;align-items:center;margin:0 0 8px;padding:4px 10px;border-radius:999px;font-size:13px;font-weight:700;background:#E7F3DC;color:#2C5222;text-decoration:none}
+.badge.s2{background:#F8E3DC;color:#8A2E28}
+.badge.s3{background:#FDE6D8;color:#8A4524}
+.badge:hover{text-decoration:none;filter:brightness(.98)}
+h1.book-title{font-size:2rem;line-height:1.25}
+h1.book-title .en-title{display:block;margin-top:4px;font-family:var(--font-body);font-weight:400;font-size:1.05rem;color:var(--muted)}
+.theme-line{margin-top:8px}
+.seq{display:flex;gap:10px}
+.seq a{flex:1;min-width:0;text-decoration:none;color:var(--ink);font-weight:700;font-size:14px;line-height:1.35;background:var(--surface);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow)}
+.seq a small{display:block;font-weight:400;color:var(--muted)}
+.seq .next{text-align:right}
+.seq .spacer{flex:1}
+.cta{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 6px}
+.cta .pill{flex:1 1 200px}
+.upsell{margin:12px 0;padding:12px 14px;background:var(--surface);border-radius:12px;border-left:4px solid var(--s1);display:flex;flex-direction:column;gap:4px}
+.upsell.s2{border-left-color:var(--s2)}.upsell.s3{border-left-color:var(--s3)}
+.upsell a{font-weight:700;text-decoration:none}
+.upsell a:hover{text-decoration:underline;text-underline-offset:3px}
+.upsell .en{color:var(--muted);font-size:14px}
+.lead{margin-top:12px}
+.lead[lang]{color:var(--muted)}
+dl.facts{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:.95rem;margin:16px 0;background:var(--surface);border-radius:16px;box-shadow:var(--shadow);padding:14px 16px}
 dl.facts dt{font-weight:700}dl.facts dd{margin:0}
-.pages{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-.pages img{width:100%;height:auto;border-radius:var(--r-img);box-shadow:var(--shadow);aspect-ratio:3/4;background:var(--surface);display:block}
-.cta{display:flex;flex-wrap:wrap;gap:12px;margin:28px 0 8px}
-.btn{display:inline-block;padding:13px 22px;border-radius:16px;font-weight:700;text-decoration:none;text-align:center;flex:1 1 240px;transition:background .2s}
-.btn small{display:block;font-weight:400;font-size:.85em}
-.btn.buy{background:var(--accent);color:#FFFDF8}.btn.buy:hover{background:var(--accent-hover);color:#FFFDF8}
-.btn.free{background:var(--surface);color:var(--accent);box-shadow:var(--shadow)}.btn.free:hover{color:var(--accent-hover)}
-.upsell{font-size:.94rem;color:var(--muted)}
-.note{font-size:.88rem;color:var(--muted)}
-footer{margin-top:48px;padding-top:24px;padding-bottom:40px;font-size:14px;line-height:22px;color:var(--muted);background:var(--wave) repeat-x top/120px 16px}
-@media (max-width:640px){.book{grid-template-columns:1fr}.book .cover{max-width:280px}.pages{grid-template-columns:repeat(2,1fr)}h1{font-size:1.6rem}h1 .zh{font-size:1.3rem}}
-@media (max-width:600px){.book{grid-template-columns:minmax(0,38%) minmax(0,1fr);gap:14px;align-items:start}.book .cover{max-width:none}.cta.top{margin:8px 0 4px;gap:8px}.cta.top .btn{flex:1 1 100%;min-width:0;padding:10px 8px}}
+.book-wrap h2{font-size:1.45rem;margin:2rem 0 .75rem}
+.book-wrap h2 span[lang]{font:400 1rem var(--font-body);color:var(--muted);margin-left:6px}
+.pages{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.pages img{width:100%;border-radius:12px;box-shadow:var(--shadow);aspect-ratio:3/4;object-fit:cover;background:var(--surface);display:block}
+.note{margin-top:10px;font-size:.9rem;color:var(--muted)}
+.season-links{display:grid;grid-template-columns:1fr 1fr;gap:16px 24px}
+.season-links h3{font-size:1.15rem}
+.season-links h3 a{color:var(--ink);text-decoration:none}
+.season-links ul{list-style:none;margin:8px 0 0;padding:0}
+.season-links li{margin:5px 0}
+.season-links li a{color:var(--ink);font-weight:700;text-decoration:none}
+.season-links li a:hover,.season-links h3 a:hover{color:var(--accent)}
+.season-links .en{font-weight:400}
+@media (max-width:720px){
+ .book{grid-template-columns:42% 1fr;grid-template-areas:"cover intro" "seq seq" "buy buy";gap:10px 12px}
+ h1.book-title{font-size:1.35rem}
+ h1.book-title .en-title{font-size:.92rem}
+ .pages{grid-template-columns:repeat(2,1fr)}
+ .season-links{grid-template-columns:1fr}
+ .cta{flex-wrap:nowrap;gap:8px}
+ .cta .pill{flex:1 1 0;min-width:0;padding:10px 6px;font-size:15px}
+ .cta .pill small{font-size:11px}
+}
 """
-CSS = ROOT_CSS + BOOK_CSS
 
-BOOK_HEADER = f'<header><a class="brand" href="{SITE}/"><b>Pip the Mole</b><span lang="zh-Hant">皮皮繪本</span></a></header>'
+UTM_JS = """<script>
+(function(){
+  var K=["utm_source","utm_medium","utm_campaign","utm_content","utm_term"], got={}, has=false;
+  var q=new URLSearchParams(location.search);
+  K.forEach(function(k){var v=q.get(k); if(v){got[k]=v.slice(0,100); has=true;}});
+  try{
+    if(has) sessionStorage.setItem("pip_utm", JSON.stringify(got));
+    else got=JSON.parse(sessionStorage.getItem("pip_utm")||"{}");
+  }catch(e){}
+  if(!Object.keys(got).length) return;
+  document.querySelectorAll('a[href*="gumroad.com/"]').forEach(function(a){
+    var u=new URL(a.href);
+    K.forEach(function(k){u.searchParams.delete(k);});
+    K.forEach(function(k){if(got[k]) u.searchParams.set(k, got[k]);});
+    a.href=u.toString();
+  });
+})();
+</script>"""
 
-def head(title, desc, kw, url, img, ogtype="website", ogtitle=None, css=None, header=None, bodycls=None, extra_head=""):
+STICKY_JS = """<script>
+(function(){
+  var st=document.getElementById("sticky"), hero=document.getElementById("hero-cta");
+  if(!st||!hero||!("IntersectionObserver" in window)) return;
+  function apply(on){
+    st.classList.toggle("show", on);
+    st.setAttribute("aria-hidden", on ? "false" : "true");
+    var a=st.querySelector("a"); if(a) a.tabIndex=on?0:-1;
+  }
+  new IntersectionObserver(function(es){ apply(!es[0].isIntersecting); }, {threshold:0.2}).observe(hero);
+})();
+</script>"""
+
+def head(title, desc, kw, url, img, ogtype="website", ogtitle=None, css="", header="", bodycls=None, extra_head=""):
     if ogtitle is None:
         ogtitle = title
-    if css is None:
-        css = CSS
-    if header is None:
-        header = BOOK_HEADER
     body = f'<body class="{bodycls}">' if bodycls else "<body>"
     return f"""<!doctype html>
 <html lang="en">
@@ -334,249 +682,187 @@ def head(title, desc, kw, url, img, ogtype="website", ogtitle=None, css=None, he
 {header}
 """
 
-# Footer: About + AI disclosure wording unchanged.
-UTM_JS = """<script>
-(function(){
-  var K=["utm_source","utm_medium","utm_campaign","utm_content","utm_term"], got={}, has=false;
-  var q=new URLSearchParams(location.search);
-  K.forEach(function(k){var v=q.get(k); if(v){got[k]=v.slice(0,100); has=true;}});
-  try{
-    if(has) sessionStorage.setItem("pip_utm", JSON.stringify(got));
-    else got=JSON.parse(sessionStorage.getItem("pip_utm")||"{}");
-  }catch(e){}
-  if(!Object.keys(got).length) return;
-  document.querySelectorAll('a[href*="gumroad.com/"]').forEach(function(a){
-    var u=new URL(a.href);
-    K.forEach(function(k){u.searchParams.delete(k);});
-    K.forEach(function(k){if(got[k]) u.searchParams.set(k, got[k]);});
-    a.href=u.toString();
-  });
-})();
-</script>"""
+def site_header(depth, here):
+    p = depth_prefix(depth)
+    home = home_href(depth)
+    books_href = "#books" if here == "home" else f"{home}#books"
+    sample_href = "#samples" if here == "shop" else f"{p}shop/#samples"
+    pops = []
+    for sn in all_seasons():
+        cur = ' aria-current="page"' if here == f"season-{sn}" else ""
+        pops.append(
+            f'<a href="{p}season-{sn}/"{cur}><i class="dot s{sn}" aria-hidden="true"></i>'
+            f'Season {sn} · <span lang="zh-Hant">第{ZH_NUM[sn - 1]}輯</span></a>')
+    sum_cur = ' aria-current="page"' if here.startswith("season-") else ""
+    def item(key, href, label):
+        cur = ' aria-current="page"' if here == key else ""
+        return f'<li><a href="{href}"{cur}>{label}</a></li>'
+    return f'''<a class="skip" href="#main">Skip to content</a>
+<header class="site-head"><div class="nav-inner">
+<a class="brand" href="{home}"><img class="avatar" src="{p}img/home/pip-avatar.webp" width="32" height="32" alt=""><span class="brand-name"><b>Pip the Mole</b><span lang="zh-Hant">皮皮繪本</span></span></a>
+<nav aria-label="Primary"><ul class="nav-links">
+{item("books", books_href, "Books")}
+<li><details class="menu"><summary{sum_cur}>Seasons</summary><div class="pop">{"".join(pops)}</div></details></li>
+{item("shop", f"{p}shop/", "Shop")}
+{item("about", f"{p}about/", "About")}
+<li><a href="{sample_href}">Free sample</a></li>
+</ul></nav>
+</div></header>
+'''
 
-FOOT_BODY = f"""<p><strong>About · <span lang="zh-Hant">關於</span>:</strong> Stories written by PP O in Hong Kong. Illustrations are AI-generated. <span lang="zh-Hant">故事由香港的 PP O 創作，插圖由 AI 生成。</span></p>
-<p>Books are sold as PDF ebooks on Gumroad (Gumroad handles checkout). <span lang="zh-Hant">電子書（PDF）經 Gumroad 發售。</span></p>
-<p>Contact · <span lang="zh-Hant">聯絡</span>: <a href="mailto:{EMAIL}">{EMAIL}</a></p>"""
+def site_footer(depth):
+    p = depth_prefix(depth)
+    home = home_href(depth)
+    faq = "#faq" if depth == 0 else f"{home}#faq"
+    seasons = "".join(
+        f'<a href="{p}season-{sn}/">Season {sn} · <span lang="zh-Hant">第{ZH_NUM[sn - 1]}輯</span></a>'
+        for sn in all_seasons())
+    return f'''<footer class="site"><div class="wrap">
+<a class="brand" href="{home}"><img class="avatar" src="{p}img/home/pip-avatar.webp" width="32" height="32" alt=""><span class="brand-name"><b>Pip the Mole</b><span lang="zh-Hant">皮皮繪本</span></span></a>
+<nav class="foot-nav" aria-label="Footer">
+{seasons}
+<a href="{p}shop/">Shop · <span lang="zh-Hant">商店</span></a>
+<a href="{p}about/">About · <span lang="zh-Hant">關於</span></a>
+<a href="{faq}">FAQ · <span lang="zh-Hant">常見問題</span></a>
+<a href="mailto:{EMAIL}">Contact · <span lang="zh-Hant">聯絡</span></a>
+</nav>
+<p>Stories by PP O in Hong Kong. Illustrations are AI-generated. <a href="{p}about/">About · <span lang="zh-Hant">關於</span></a></p>
+<p>PDF ebooks. Checkout on Gumroad. <span lang="zh-Hant">電子書（PDF）。結帳在 Gumroad。</span></p>
+<p class="other-label">其他店／周邊 · Other shops</p>
+<p class="chips">
+<a class="chip" href="{ETSY}" target="_blank" rel="noopener">Etsy · <span lang="zh-Hant">同一套 PDF</span></a>
+<a class="chip" href="{REDBUBBLE}" target="_blank" rel="noopener">Redbubble · <span lang="zh-Hant">貼紙與杯子等周邊</span></a>
+</p>
+<p class="note">Etsy sells the same PDF ebooks. Redbubble sells merch. Neither is the Gumroad checkout. <span lang="zh-Hant">Etsy 是同一套 PDF 電子書；Redbubble 是周邊。兩者都不是 Gumroad 結帳。</span></p>
+</div></footer>
+'''
 
-FOOT = f"""<footer>
-{FOOT_BODY}
-</footer>
-{UTM_JS}
-</body>
-</html>
-"""
+def sticky_bar(href):
+    label = bundle_label()
+    return f'''<div class="sticky" id="sticky" aria-hidden="true"><a class="pill" href="{href}" tabindex="-1" aria-label="6-book set from US${min_bundle_price()}"><span lang="zh-Hant">{label}</span></a></div>
+{STICKY_JS}'''
 
-BASE_KW = "children's picture book, bilingual Chinese English picture book, Traditional Chinese, 中英雙語繪本, bedtime story, toddler, preschool, ages 3-6, read aloud, PDF ebook, Pip the mole"
+def finish(depth, sticky=""):
+    return site_footer(depth) + sticky + UTM_JS + "</body>\n</html>\n"
 
-def book_page(b):
-    url = f"{SITE}/{b['slug']}/"
-    img = f"{SITE}/img/{b['slug']}/og.jpg"
-    title = f"{b['en']} {b['zh']} · Bilingual Chinese English Picture Book, Ages 3–6"
-    desc = (f"Book {b['n']} of Pip the mole's stories: a bilingual English + Traditional Chinese children's picture book "
-            f"(PDF) about {b['theme_en']}, for toddlers and preschoolers aged 3–6. {b['short_en']}" + (" Free sample available." if b.get("sample") else ""))
-    kw = f"{b['en']}, {b['zh']}, {b['kw']}, " + BASE_KW
-    pages = "\n".join(
-        f'<img src="../img/{b["slug"]}/page-{i}.webp" width="720" height="960" loading="lazy" decoding="async" '
-        f'alt="{E(b["en"])}, story page {i}: illustration with Traditional Chinese and English text">' for i in range(1, 5))
-    others = [o for o in sorted(live_books(), key=lambda x: -x["n"]) if o is not b]
-    more = " · ".join(f'<a href="../{o["slug"]}/">{E(o["en"])} <span lang="zh-Hant">{o["zh"]}</span></a>' for o in others)
-    own = next((x for x in BUNDLES if b["n"] in x["books"]), None)
-    if own:   # this book is in a live bundle
-        r = f'{own["books"][0]}–{own["books"][-1]}'
-        upsell = (f'<p class="upsell">Want the set? <a href="{own["url"]}{UTM}">Get Pip Books {r} in one bundle for US${own["price"]}</a> '
-                  f'· <span lang="zh-Hant">想要套裝？<a href="{own["url"]}{UTM}">皮皮第 {r} 集套裝 US${own["price"]}</a></span></p>')
-    else:     # Books 7–12 until their bundle is live: point to the Books 1–6 bundle
-        upsell = (f'<p class="upsell">Also available: <a href="{BUNDLE}{UTM}">the Pip bundle of Books 1–6 for US$9.99</a> '
-                  f'· <span lang="zh-Hant">另有<a href="{BUNDLE}{UTM}">皮皮第 1–6 集套裝 US$9.99</a></span></p>')
+def ld_script(obj):
+    return '<script type="application/ld+json">' + json.dumps(obj, ensure_ascii=False) + "</script>\n"
+
+def bundle_products():
+    out = []
+    for x in BUNDLES:
+        out.append({
+            "@type": "Product",
+            "name": f"Pip the Mole {x['label_en']} bundle · {x['zh']}",
+            "description": f"{len(x['books'])} bilingual English + Traditional Chinese picture books (PDF) for ages 3–6.",
+            "image": f"{SITE}/img/og-collage.jpg",
+            "brand": {"@type": "Brand", "name": "Pip the Mole Books"},
+            "offers": {"@type": "Offer", "price": x["price"], "priceCurrency": "USD",
+                       "availability": "https://schema.org/InStock", "url": gum_url(x["url"])},
+        })
+    return out
+
+def cover_img(b, prefix, eager=False):
+    slug = b["slug"]
+    loading = "eager" if eager else "lazy"
+    return (f'<img src="{prefix}img/{slug}/cover-sm.webp" '
+            f'srcset="{prefix}img/{slug}/cover-sm.webp 360w, {prefix}img/{slug}/cover.webp 600w" '
+            f'sizes="(max-width:800px) 46vw, 320px" width="360" height="480" loading="{loading}" decoding="async" '
+            f'alt="Cover of {E(b["en"])} / {E(b["zh"])}">')
+
+def book_card(b, prefix, newest=None):
+    sn = season_of(b)
+    theme_en = b.get("tag_en") or b["theme_en"]
+    theme_en = theme_en[:1].upper() + theme_en[1:]
+    zh_n = ZH_NUM[b["n"] - 1]
+    img = cover_img(b, prefix)
+    eyebrow = f'Book {b["n"]} · <span lang="zh-Hant">第{zh_n}集</span>'
+    if status_of(b) != "live":
+        return f'''<article class="card soon s{sn}">
+<div class="cover">{img}</div>
+<div class="card-body">
+<p class="eyebrow">{eyebrow}</p>
+<h3 lang="zh-Hant">{E(b["zh"])}</h3>
+<p class="en-name">{E(b["en"])}</p>
+<p class="chip-theme"><span class="th" lang="zh-Hant">{E(b["theme_zh"])}</span><span class="en">{E(theme_en)}</span></p>
+<div class="card-actions"><span class="soon-label">Coming soon · <span lang="zh-Hant">即將推出</span></span></div>
+</div></article>'''
+    tag = ' <span class="tag">New · <span lang="zh-Hant">新</span></span>' if newest is not None and b is newest else ""
     if b.get("sample"):
-        sample_top = f'<a class="btn free" href="{GR}{b["sample"]}{UTM}">Read the free sample<small lang="zh-Hant">免費試讀（封面＋頭 5 頁）</small></a>\n'
-        sample_bot = f'<a class="btn free" href="{GR}{b["sample"]}{UTM}">Read the free sample<small lang="zh-Hant">免費試讀</small></a>\n'
-        sample_note = (f'<p class="note">The free sample has the cover and the first 5 story pages. Book {b["n"]} also reads fine on its own. '
-                       f'<span lang="zh-Hant">免費試讀版包括封面和故事的頭 5 頁。</span></p>')
-    else:     # free sample not live yet
-        sample_top = sample_bot = ""
-        sample_note = f'<p class="note">Book {b["n"]} also reads fine on its own. <span lang="zh-Hant">每本都可以單獨閱讀。</span></p>'
-    s = head(title, desc, kw, url, img, "book")
-    s += f"""<main>
-<div class="book">
-<div class="cover"><img src="../img/{b['slug']}/cover.webp" width="600" height="800" alt="Cover of {E(b['en'])} / {b['zh']}: Pip the mole and friends"></div>
-<div>
-<p class="note">Book {b['n']} · <span lang="zh-Hant">第{ZH_NUM[b['n']-1]}集</span></p>
-<h1>{E(b['en'])}<span class="zh" lang="zh-Hant">{b['zh']}</span></h1>
-<div class="cta top">
-{sample_top}<a class="btn buy" href="{GR}{b['paid']}{UTM}">Get the full book US$4.99<small lang="zh-Hant">購買完整版 US$4.99</small></a>
-</div>
-{upsell}
-<p class="lead">{E(b['sum_en'])}</p>
-<p class="lead" lang="zh-Hant">{b['sum_zh']}</p>
-<dl class="facts">
-<dt>Ages · <span lang="zh-Hant">年齡</span></dt><dd>3–6 · <span lang="zh-Hant">適合 3–6 歲</span></dd>
-<dt>Language · <span lang="zh-Hant">語言</span></dt><dd>English + Traditional Chinese on every page · <span lang="zh-Hant">每頁中英對照（繁體中文）</span></dd>
-<dt>Theme · <span lang="zh-Hant">主題</span></dt><dd>{E(b['theme_en'].capitalize())} · <span lang="zh-Hant">{b['theme_zh']}</span></dd>
-<dt>Format · <span lang="zh-Hant">格式</span></dt><dd>PDF ebook, 19 pages (cover, 16 story pages, a read-aloud refrain page, back cover); screen and print-ready 300 dpi versions · <span lang="zh-Hant">PDF 電子書，共 19 頁</span></dd>
-<dt>Story · <span lang="zh-Hant">故事</span></dt><dd>PP O (Hong Kong); illustrations AI-generated · <span lang="zh-Hant">插圖由 AI 生成</span></dd>
-</dl>
-</div>
-</div>
-<h2>Look inside · <span lang="zh-Hant">內頁預覽</span></h2>
-<div class="pages">
-{pages}
-</div>
-{sample_note}
-<div class="cta">
-{sample_bot}<a class="btn buy" href="{GR}{b['paid']}{UTM}">Get the full book US$4.99<small lang="zh-Hant">購買完整版 US$4.99</small></a>
-</div>
-{upsell}
-<h2>More Pip books · <span lang="zh-Hant">更多皮皮繪本</span></h2>
-<p>{more}</p>
-<p><a href="../">← All books · <span lang="zh-Hant">所有繪本</span></a></p>
-</main>
-"""
-    return s + FOOT
+        sample = (f'<a class="btn-sample" href="{gum_slug(b["sample"])}" '
+                  f'aria-label="Free sample of {E(b["en"])}"><span lang="zh-Hant">免費試讀</span><small>Free</small></a>')
+    else:
+        sample = '<span class="btn-sample" aria-disabled="true">Soon<small>Free sample</small></span>'
+    buy = (f'<a class="btn-buy" href="{gum_slug(b["paid"])}" '
+           f'aria-label="Buy {E(b["en"])}, US${price_of(b)}"><span>US${price_of(b)}</span><small lang="zh-Hant">購買</small></a>')
+    return f'''<article class="card s{sn}">
+<a class="cover" href="{prefix}{b["slug"]}/">{img}</a>
+<div class="card-body">
+<p class="eyebrow">{eyebrow}{tag}</p>
+<h3><a href="{prefix}{b["slug"]}/" lang="zh-Hant">{E(b["zh"])}</a></h3>
+<p class="en-name">{E(b["en"])}</p>
+<p class="chip-theme"><span class="th" lang="zh-Hant">{E(b["theme_zh"])}</span><span class="en">{E(theme_en)}</span></p>
+<div class="card-actions">{sample}{buy}</div>
+</div></article>'''
 
-HOME_CSS = """
-p{margin:0}h1,h2,h3{margin:0}
-.zh{color:var(--muted);font-weight:400;font-family:var(--font-body)}
-h1+.zh{font-size:26px;line-height:36px;margin-top:8px}
-h2+.zh{font-size:22px;line-height:32px;margin-top:4px}
-h3+.zh{font-size:17px;line-height:26px;margin-top:2px}
-h1{font-size:46px;line-height:54px}h2{font-size:30px;line-height:38px}h3{font-size:20px;line-height:28px}
-a{text-decoration:none}a:hover{text-decoration:underline;text-underline-offset:3px}
-.wrap{max-width:calc(var(--maxw) + 48px);margin:0 auto;padding:0 24px}
-.section{padding:var(--section) 0}
-.section-head{max-width:var(--textw);margin-bottom:48px}
-.section-head .lede{margin-top:16px;color:var(--ink)}
-.section-head .lede .zh{display:block;font-size:15px;line-height:24px}
-.wave{height:16px;max-width:var(--maxw);margin:0 auto;background:var(--wave) repeat-x center/120px 16px}
-/* slim header */
-.nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0}
-.nav ul{display:flex;gap:28px;list-style:none;margin:0;padding:0;font-size:15px}
-.nav ul a{color:var(--ink)}
-/* hero */
-.hero{padding:32px 0 var(--section)}
-.hero-text{max-width:var(--textw);margin-bottom:48px}
-.hero-text .body{margin-top:24px}
-.hero-text .body .zh{display:block;font-size:15px;line-height:24px;margin-top:4px}
-.actions{display:flex;align-items:center;flex-wrap:wrap;gap:16px 32px;margin-top:32px}
-.btn{display:inline-block;background:var(--accent);color:#FFFDF8;font:700 17px/24px var(--font-body);padding:16px 28px;border-radius:999px;transition:background .2s}
-.btn:hover{background:var(--accent-hover);color:#FFFDF8;text-decoration:none}
-.textlink{font-weight:700}
-.hero-art{border-radius:var(--r-hero);overflow:hidden;aspect-ratio:9/5;background:#e9d9c4}
-.hero-art img{display:block;width:100%;height:100%;object-fit:cover}
-.why{list-style:none;margin:48px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:32px}
-.why li{display:grid;grid-template-columns:88px 1fr;column-gap:20px;align-items:center}
-.spot{width:88px;height:88px;border-radius:50%;object-fit:cover;grid-row:span 3}
-.why h3{font-size:18px;line-height:26px}.why h3+.zh{font-size:15px;line-height:22px}
-.why .body{font-size:15px;line-height:24px;margin-top:4px}
-/* books */
-.season{margin:0 0 24px;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 24px}
-.season h3{font-size:22px;line-height:30px}.season h3 .zh{font-size:17px;margin-left:8px}
-.season a{font-weight:700;font-size:15px}
-.season-block+.season-block{margin-top:64px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap)}
-.card{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;transition:transform .2s ease,box-shadow .2s ease}
-.card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(59,47,36,.10)}
-.card .cover img{display:block;border-radius:var(--r-img);aspect-ratio:3/4;object-fit:cover;width:100%;background:#efe6d4}
-.card-body{padding:20px 8px 4px;display:flex;flex-direction:column;flex:1}
-.eyebrow{font-size:14px;line-height:22px;color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:8px}
-.tag{font-size:12px;line-height:18px;color:var(--moss);background:rgba(94,122,78,.10);padding:1px 8px;border-radius:999px;font-weight:700}
-.card h3 a{color:var(--ink)}.card h3 a:hover{color:var(--ink);text-decoration:none}
-.theme{margin-top:12px;font-size:15px;line-height:24px}
-.theme .zh{display:block;font-size:14px;line-height:22px}
-.card-foot{margin-top:auto;padding-top:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-size:15px;line-height:22px}
-.card-foot a{font-weight:700}
-.card-foot .zh{display:block;font-size:13px;line-height:20px;font-weight:400}
-.price{color:var(--ink);font-weight:700;white-space:nowrap}.price:hover{color:var(--ink)}
-.soon .card-foot{color:var(--muted)}
-/* look inside */
-.strip{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
-.strip img{display:block;width:100%;border-radius:var(--r-img);box-shadow:var(--shadow);background:var(--surface);aspect-ratio:3/4}
-.strip-more{margin-top:24px;font-weight:700}
-/* bundles */
-.band{background:var(--sage)}
-.bundle{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
-.bundle+.bundle{margin-top:var(--section)}
-.bundle .label{font-size:14px;line-height:22px;color:var(--muted);margin-bottom:8px}
-.fan{position:relative;height:340px}
-.fan img{position:absolute;width:190px;border-radius:var(--r-img);box-shadow:var(--shadow);top:30px}
-.fan img:nth-child(1){left:8%;transform:rotate(-6deg)}
-.fan img:nth-child(2){left:50%;margin-left:-95px;top:0;z-index:2}
-.fan img:nth-child(3){right:8%;transform:rotate(6deg)}
-.price-big{font:600 46px/54px var(--font-head);font-variation-settings:'SOFT' 100;margin-top:24px}
-.price-note{color:var(--ink);font-size:15px;line-height:24px;margin-top:8px}
-.price-note .zh{display:block}
-.bundle .btn{margin-top:32px}
-/* faq */
-.faq{max-width:760px}
-details{border-top:1px solid var(--hairline)}
-details:last-child{border-bottom:1px solid var(--hairline)}
-summary{list-style:none;cursor:pointer;padding:24px 48px 24px 0;position:relative}
-summary::-webkit-details-marker{display:none}
-summary::after{content:'';position:absolute;right:8px;top:34px;width:10px;height:10px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
-details[open] summary::after{transform:rotate(-135deg);top:40px}
-summary .q{display:block;font-weight:700}
-summary .zh{display:block;font-size:15px;line-height:24px}
-.a{padding:0 48px 24px 0;max-width:var(--textw)}
-.a .zh{font-size:15px;line-height:24px;margin-top:8px}
-/* more ways */
-.more-ways{padding:0 0 var(--section)}
-.more-ways h2{font-size:22px;line-height:30px}.more-ways h2+.zh{font-size:17px;line-height:26px}
-.chips{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
-.chip{display:inline-block;padding:8px 16px;border:1px solid var(--hairline);border-radius:999px;color:var(--ink);font-size:15px;line-height:22px;background:transparent}
-.chip:hover{border-color:var(--muted);color:var(--ink);text-decoration:none}
-.chip .zh{font-size:14px}
-.more-ways .note{margin-top:12px;font-size:14px;line-height:22px;color:var(--muted)}
-/* footer */
-footer{padding:40px 0 72px;font-size:14px;line-height:22px;color:var(--muted)}
-footer p{margin:8px 0 0}
-footer .brand b{font-size:18px}
-/* sticky mobile CTA */
-.sticky{position:fixed;left:0;right:0;bottom:0;z-index:9;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:rgba(251,246,236,.96);box-shadow:0 -4px 16px rgba(59,47,36,.08);display:none;transform:translateY(110%);transition:transform .25s}
-.sticky .btn{display:block;text-align:center;padding:12px 20px;font-size:16px}
-.sticky.show{transform:none}
-@media (max-width:900px){.why{grid-template-columns:1fr;gap:16px}}
-@media (max-width:720px){
- h1{font-size:30px;line-height:38px}h1+.zh{font-size:20px;line-height:28px;margin-top:6px}
- h2{font-size:24px;line-height:32px}h2+.zh{font-size:18px;line-height:28px}
- .wrap{padding:0 20px}
- .nav{padding:14px 0}.nav ul{gap:16px;font-size:14px}.nav .brand span{display:none}.brand b{font-size:20px}
- .hero{padding:8px 0 24px}
- .hero-text{margin-bottom:16px}
- .hero-text .body{margin-top:12px;font-size:15px;line-height:24px}
- .hero-text .body .zh{font-size:14px;line-height:22px;margin-top:2px}
- .actions{margin-top:16px;gap:12px 24px}
- .btn{padding:14px 24px;font-size:16px}
- .hero-art{aspect-ratio:2/1;border-radius:20px}
- .why{margin-top:12px;grid-template-columns:repeat(3,1fr);gap:8px}
- .why li{display:block;text-align:center}
- .spot{display:block;width:40px;height:40px;margin:0 auto 4px}
- .why h3{font-size:13px;line-height:18px}.why h3+.zh{font-size:12px;line-height:18px;margin:2px 0 0}
- .why .body{display:none}
- #books{padding-top:24px}
- .season a{display:none}
- .section-head{margin-bottom:16px}
- .section-head .lede{margin-top:8px;font-size:15px;line-height:24px}
- .season{margin-bottom:16px}.season h3{font-size:19px;line-height:26px}.season h3 .zh{font-size:15px}
- .grid{grid-template-columns:repeat(2,1fr)}
- .card{padding:8px}
- .card-body{padding:10px 4px 2px}
- .card h3{font-size:17px;line-height:24px}.card h3+.zh{font-size:14px;line-height:22px}
- .theme{font-size:14px;line-height:22px;margin-top:6px}.theme .zh{font-size:13px;line-height:20px}
- .card-foot{font-size:14px;gap:4px;padding-top:10px}.card-foot a{white-space:nowrap}
- .season a{font-size:14px}
- .strip{display:flex;overflow-x:auto;gap:16px;margin:0 -20px;padding:0 20px 12px;scroll-snap-type:x mandatory}
- .strip li{flex:0 0 62%;scroll-snap-align:start}
- .bundle{grid-template-columns:1fr;gap:24px}
- .fan{height:220px;order:-1}.fan img{width:124px}.fan img:nth-child(2){margin-left:-62px}
- .price-big{font-size:36px;line-height:44px}
- summary{padding:20px 40px 20px 0}summary::after{top:28px}details[open] summary::after{top:34px}
- .a{padding-right:0}
- .sticky{display:block}
-}
-@media (max-width:400px){.card-foot{font-size:13px}.card-foot .zh{font-size:12px}
- body.lp{padding-bottom:76px}
-}
-"""
+def fan_links(nums, prefix):
+    bits = []
+    for n in nums:
+        b = book_by_n(n)
+        bits.append(
+            f'<a href="{prefix}{b["slug"]}/"><img src="{prefix}img/{b["slug"]}/cover.webp" width="600" height="800" '
+            f'alt="Cover of {E(b["en"])} / {E(b["zh"])}"></a>')
+    return "".join(bits)
+
+def entry_card(sn, prefix):
+    meta = SEASON_META[sn]
+    bs = books_in(sn)
+    bund = bundle_for(sn)
+    price = bund["price"] if bund else min_bundle_price()
+    nums = (bund.get("fan") if bund else None) or [b["n"] for b in bs[:3]]
+    thumbs = []
+    for n in nums:
+        b = book_by_n(n)
+        thumbs.append(f'<img src="{prefix}img/{b["slug"]}/cover-sm.webp" alt="" width="120" height="160">')
+    rng = f'{bs[0]["n"]}–{bs[-1]["n"]}'
+    return f'''<a class="entry s{sn}" id="season-{sn}" href="{prefix}season-{sn}/">
+<span class="band" aria-hidden="true"></span>
+<span class="mini" aria-hidden="true">{"".join(thumbs)}</span>
+<span class="body">
+<span class="eyebrow">Season {sn} · Books {rng}</span>
+<strong lang="zh-Hant">第{ZH_NUM[sn - 1]}輯</strong>
+<span class="tone">{E(meta["tone_en"])}<span class="zh" lang="zh-Hant">{meta["tone_zh"]}</span></span>
+<span class="go"><span lang="zh-Hant">6 本 · 套裝 US${price}</span><small>6 books · open this season</small></span>
+</span></a>'''
+
+def bundle_aside(x, prefix, cls="bcard"):
+    each, n = sum(float(price_of(b)) for b in BOOKS if b["n"] in x["books"]), len(x["books"])
+    nums = x.get("fan") or x["books"][:3]
+    thumbs = []
+    for num in nums:
+        b = book_by_n(num)
+        thumbs.append(f'<img src="{prefix}img/{b["slug"]}/cover-sm.webp" alt="" width="160" height="214">')
+    sn = x["season"]
+    r = f'{x["books"][0]}–{x["books"][-1]}'
+    return f'''<article class="{cls} s{sn}">
+<div class="pad">
+<p class="eyebrow">{E(x["label_en"])} · <span lang="zh-Hant">{x["label_zh"]}</span></p>
+<div class="thumbs" aria-hidden="true">{"".join(thumbs)}</div>
+<h2>{E(x["zh"])}</h2>
+<p class="en-name">{E(x["en"])}</p>
+<p class="was">6 × US${PRICE} = US${each:.2f} · <span lang="zh-Hant">分開買 US${each:.2f}</span></p>
+<p class="price-big">US${x["price"]}</p>
+<p class="checkout-note">Pay what you want from US${x["price"]}. Checkout on Gumroad. <span lang="zh-Hant">由 US${x["price"]} 起，可自訂更高價錢。結帳在 Gumroad。</span></p>
+<a class="pill" href="{gum_url(x["url"])}"><span lang="zh-Hant">購買套裝 US${x["price"]}</span><small>Get Books {r} · {n} PDFs</small></a>
+<a class="textlink" href="{prefix}season-{sn}/">這一輯 · Season {sn} →</a>
+</div></article>'''
+
+def seq_link(b, prefix, direction):
+    if not b:
+        return '<span class="spacer"></span>'
+    zh = f'← {E(b["zh"])}' if direction == "prev" else f'{E(b["zh"])} →'
+    return (f'<a class="{direction}" href="{prefix}{b["slug"]}/" rel="{direction}">'
+            f'<span lang="zh-Hant">{zh}</span><small>{E(b["en"])}</small></a>')
 
 FAQ = [
  ("How do I get the books after paying?", "付款後怎樣收到書？",
@@ -595,12 +881,359 @@ FAQ = [
   "Ages 3–6. The sentences are short and repeat, so they work for reading aloud at bedtime and for early readers. The stories follow the same friends through the seasons, but each book reads fine on its own.",
   "3 至 6 歲。句子短、有重複，適合睡前唸給孩子聽，也適合剛開始認字的孩子。故事是皮皮和好朋友們在不同季節的經歷，但每本都可以單獨閱讀。"),
 ]
+# Homepage keeps three decisions: download, age/order, Traditional Chinese. No /faq/ page.
+FAQ_HOME = (FAQ[0], FAQ[4], FAQ[3])
 
-WHY = [
- ("together", "Two languages, one page", "同一頁中英對照", "English and Traditional Chinese together on every page. Read either one, or both."),
- ("calm", "Short and calm", "短而平靜", "16 story pages with short, repeating lines and a read-aloud refrain. Made for winding down."),
- ("lesson", "One small lesson per book", "每本一個小道理", "Teamwork, sharing, saying sorry, trying again, speaking up, saying thank you."),
-]
+def book_page(b):
+    prefix = "../"
+    sn = season_of(b)
+    url = f"{SITE}/{b['slug']}/"
+    img = f"{SITE}/img/{b['slug']}/og.jpg"
+    title = f"{b['en']} {b['zh']} · Bilingual Chinese English Picture Book, Ages 3–6"
+    desc = (f"Book {b['n']} of Pip the mole's stories: a bilingual English + Traditional Chinese children's picture book "
+            f"(PDF) about {b['theme_en']}, for toddlers and preschoolers aged 3–6. {b['short_en']}"
+            + (" Free sample available." if b.get("sample") else ""))
+    kw = f"{b['en']}, {b['zh']}, {b['kw']}, " + BASE_KW
+    seq = [x for x in books_in(sn) if status_of(x) == "live"]
+    i = next(i for i, x in enumerate(seq) if x["n"] == b["n"])
+    prev_b = seq[i - 1] if i else None
+    next_b = seq[i + 1] if i + 1 < len(seq) else None
+    extra = ""
+    if prev_b:
+        extra += f'<link rel="prev" href="{SITE}/{prev_b["slug"]}/">\n'
+    if next_b:
+        extra += f'<link rel="next" href="{SITE}/{next_b["slug"]}/">\n'
+    pages = "\n".join(
+        f'<img src="{prefix}img/{b["slug"]}/page-{n}.webp" width="720" height="960" loading="lazy" decoding="async" '
+        f'alt="{E(b["en"])}, story page {n}: illustration with Traditional Chinese and English text">'
+        for n in range(1, 5))
+    if b.get("sample"):
+        sample_top = f'<a class="pill sample" href="{gum_slug(b["sample"])}"><span lang="zh-Hant">免費試讀</span><small>Free sample</small></a>\n'
+        sample_note = (f'<p class="note">The free sample has the cover and the first 5 story pages. Book {b["n"]} also reads fine on its own. '
+                       f'<span lang="zh-Hant">免費試讀版包括封面和故事的頭 5 頁。</span></p>')
+    else:
+        sample_top = ""
+        sample_note = f'<p class="note">Book {b["n"]} also reads fine on its own. <span lang="zh-Hant">每本都可以單獨閱讀。</span></p>'
+    buy = f'<a class="pill" href="{gum_slug(b["paid"])}"><span lang="zh-Hant">購買 US${price_of(b)}</span><small>Buy the full book</small></a>'
+    own = bundle_for(sn) if bundle_for(sn) and b["n"] in bundle_for(sn)["books"] else None
+    if own:
+        r = f'{own["books"][0]}–{own["books"][-1]}'
+        upsell = (f'<p class="upsell s{sn}"><a href="{gum_url(own["url"])}">想要套裝？第 {r} 集 6 本 US${own["price"]} →</a>'
+                  f'<span class="en">Get Books {r} · checkout on Gumroad</span>'
+                  f'<a class="season-jump" href="{prefix}season-{sn}/">這一輯的六本書 · Season {sn}</a></p>')
+    else:
+        upsell = (f'<p class="upsell s1"><a href="{gum_url(BUNDLE)}">皮皮第 1–6 集套裝 US$9.99 →</a>'
+                  f'<span class="en">Books 1–6 bundle · checkout on Gumroad</span></p>')
+    rest = [o for o in seq if o is not b]
+    rest_html = "\n".join(book_card(o, prefix) for o in rest)
+    others = []
+    for osn in all_seasons():
+        if osn == sn:
+            continue
+        items = []
+        for o in books_in(osn):
+            if status_of(o) != "live":
+                continue
+            items.append(f'<li><a href="{prefix}{o["slug"]}/"><span lang="zh-Hant">{E(o["zh"])}</span> <span class="en">· {E(o["en"])}</span></a></li>')
+        others.append(
+            f'<div><h3><a href="{prefix}season-{osn}/">Season {osn} · <span lang="zh-Hant">第{ZH_NUM[osn - 1]}輯</span></a></h3>'
+            f'<ul>{"".join(items)}</ul></div>')
+    theme_en = b["theme_en"][:1].upper() + b["theme_en"][1:]
+    zh_n = ZH_NUM[b["n"] - 1]
+    css = ROOT_CSS + SHELL_CSS + BOOK_CSS
+    header = site_header(1, f"book-{b['slug']}")
+    s = head(title, desc, kw, url, img, "book", css=css, header=header, bodycls="book", extra_head=extra)
+    s += f'''<main id="main"><div class="wrap book-wrap">
+<p class="back"><a href="{prefix}#books">← <span lang="zh-Hant">全部繪本</span> · All books</a></p>
+<div class="book">
+<div class="cover"><img src="{prefix}img/{b['slug']}/cover.webp" width="600" height="800" alt="Cover of {E(b['en'])} / {E(b['zh'])}: Pip the mole and friends"></div>
+<div class="book-intro">
+<a class="badge s{sn}" href="{prefix}season-{sn}/">Book {b['n']} · Season {sn} · <span lang="zh-Hant">第{zh_n}集 · 第{ZH_NUM[sn - 1]}輯</span></a>
+<h1 class="book-title"><span class="zh-title" lang="zh-Hant">{E(b['zh'])}</span><span class="en-title">{E(b['en'])}</span></h1>
+<p class="theme-line"><span lang="zh-Hant">主題：{E(b['theme_zh'])}</span> · {E(theme_en)}</p>
+</div>
+<nav class="seq" aria-label="In this season">{seq_link(prev_b, prefix, "prev")}{seq_link(next_b, prefix, "next")}</nav>
+<div class="book-buy">
+<div class="cta">{sample_top}{buy}</div>
+<p class="checkout-note">Checkout on Gumroad · <span lang="zh-Hant">結帳在 Gumroad</span></p>
+{upsell}
+<p class="lead">{E(b['sum_en'])}</p>
+<p class="lead" lang="zh-Hant">{E(b['sum_zh'])}</p>
+<dl class="facts">
+<dt>Ages · <span lang="zh-Hant">年齡</span></dt><dd>3–6 · <span lang="zh-Hant">適合 3–6 歲</span></dd>
+<dt>Language · <span lang="zh-Hant">語言</span></dt><dd>English + Traditional Chinese on every page · <span lang="zh-Hant">每頁中英對照（繁體中文）</span></dd>
+<dt>Theme · <span lang="zh-Hant">主題</span></dt><dd>{E(theme_en)} · <span lang="zh-Hant">{E(b['theme_zh'])}</span></dd>
+<dt>Format · <span lang="zh-Hant">格式</span></dt><dd>PDF ebook, 19 pages (cover, 16 story pages, a read-aloud refrain page, back cover); screen and print-ready 300 dpi versions · <span lang="zh-Hant">PDF 電子書，共 19 頁</span></dd>
+<dt>Story · <span lang="zh-Hant">故事</span></dt><dd>PP O (Hong Kong); illustrations AI-generated · <span lang="zh-Hant">插圖由 AI 生成</span> · <a href="{prefix}about/">About · <span lang="zh-Hant">關於</span></a></dd>
+</dl>
+</div>
+</div>
+<h2>Look inside · <span lang="zh-Hant">內頁預覽</span></h2>
+<div class="pages">{pages}</div>
+{sample_note}
+<div class="cta">{sample_top}{buy}</div>
+<h2><span lang="zh-Hant">本季其餘</span> · Rest of Season {sn}</h2>
+<div class="grid">{rest_html}</div>
+<h2><span lang="zh-Hant">其他輯</span> · Other seasons</h2>
+<div class="season-links">{"".join(others)}</div>
+</div></main>
+'''
+    return s + finish(1)
+
+def season_page(sn):
+    meta = SEASON_META[sn]
+    bs = books_in(sn)
+    live = [b for b in bs if status_of(b) == "live"]
+    bund = bundle_for(sn)
+    prefix = "../"
+    rng = f'{bs[0]["n"]}–{bs[-1]["n"]}'
+    zh = f"第{ZH_NUM[sn - 1]}輯"
+    title = f"Season {sn} · {zh} · Pip the Mole 皮皮繪本 · Books {rng}"
+    desc = (f"Season {sn} of Pip the Mole: books {rng}, bilingual English and Traditional Chinese picture books for ages 3–6. "
+            f"{meta['story_en']} {meta['story_zh']}")
+    og_b = live[0]
+    img = f"{SITE}/img/{og_b['slug']}/og.jpg"
+    url = f"{SITE}/season-{sn}/"
+    nums = (bund.get("fan") if bund else None) or [b["n"] for b in bs[:3]]
+    newest = live_books()[-1]
+    cards = "\n".join(book_card(b, prefix, newest) for b in bs)
+    cta = ""
+    repeat = ""
+    if bund:
+        cta = (f'<div class="hero-actions"><a class="pill" id="hero-cta" href="{gum_url(bund["url"])}">'
+               f'<span lang="zh-Hant">{bundle_label()}</span><small>Season {sn} · Books {rng}</small></a>'
+               f'<a class="textlink" href="#books"><span lang="zh-Hant">單本亦售</span> · Singles US${PRICE}</a></div>'
+               f'<p class="checkout-note">Checkout on Gumroad · <span lang="zh-Hant">結帳在 Gumroad</span></p>')
+        each = sum(float(price_of(b)) for b in BOOKS if b["n"] in bund["books"])
+        repeat = (f'<section class="bundle-repeat s{sn}" id="bundle"><p class="eyebrow">{E(bund["label_en"])} · <span lang="zh-Hant">{bund["label_zh"]}</span></p>'
+                  f'<p class="price-big">US${bund["price"]}</p>'
+                  f'<p class="was">6 × US${PRICE} = US${each:.2f} · <span lang="zh-Hant">分開買 US${each:.2f}</span></p>'
+                  f'<p class="checkout-note">Pay what you want from US${bund["price"]}. <span lang="zh-Hant">由 US${bund["price"]} 起，可自訂更高價錢。</span></p>'
+                  f'<a class="pill" href="{gum_url(bund["url"])}"><span lang="zh-Hant">購買這輯套裝</span><small>Get Books {rng} on Gumroad</small></a></section>')
+    others = "\n".join(entry_card(s, prefix) for s in all_seasons() if s != sn)
+    graph = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {"@type": "ItemList", "name": f"Pip the Mole Season {sn}",
+             "itemListElement": [{"@type": "ListItem", "position": b["n"], "url": f"{SITE}/{b['slug']}/", "name": b["en"]} for b in live]},
+            *([bundle_products()[BUNDLES.index(bund)]] if bund else []),
+        ],
+    }
+    css = ROOT_CSS + SHELL_CSS + PAGE_CSS
+    header = site_header(1, f"season-{sn}")
+    sticky = sticky_bar(gum_url(bund["url"]) if bund else f"{prefix}shop/")
+    s = head(title, desc, BASE_KW, url, img, css=css, header=header, bodycls="season has-sticky",
+             extra_head=ld_script(graph))
+    s += f'''<main id="main"><div class="wrap">
+<p class="kicker"><a href="{prefix}">← Pip the Mole · <span lang="zh-Hant">皮皮繪本</span></a></p>
+<section class="season-top s{sn}">
+<div class="season-copy">
+<p class="eyebrow">Season {sn} · Books {rng} · Ages 3–6</p>
+<h1><span lang="zh-Hant">{zh}</span><span class="en">Season {sn}</span></h1>
+<p class="story">{E(meta["story_en"])}<span class="zh" lang="zh-Hant">{meta["story_zh"]}</span></p>
+<p class="meta">Ages 3–6 · <span lang="zh-Hant">適合 3–6 歲 · 可以不按順序讀</span> · EN + 繁中 · PDF</p>
+{cta}
+</div>
+<div class="hero-fan" aria-label="Covers">{fan_links(nums, prefix)}</div>
+</section>
+<section class="section" id="books">
+<h2 class="shelf-label">六本書 · Six books</h2>
+<div class="grid mt16">{cards}</div>
+</section>
+{repeat}
+<section class="section">
+<h2><span lang="zh-Hant">其他輯</span> · Other seasons</h2>
+<div class="entries mt14">{others}</div>
+<p class="bundle-jump mt16"><a href="{prefix}shop/">商店 · 單本和三套一起看 · Shop, singles and all three sets →</a></p>
+</section>
+</div></main>
+'''
+    return s + finish(1, sticky)
+
+def shop_page():
+    prefix = "../"
+    title = "Shop · 商店 · Pip the Mole 皮皮繪本 · Singles and 6-book sets"
+    desc = ("Singles are US$4.99. Each 6-book set is pay-what-you-want from US$9.99. "
+            "Checkout is on Gumroad. Free sample of every book. "
+            "單本 US$4.99，六本套裝由 US$9.99 起。結帳在 Gumroad。每本都有免費試讀。")
+    url = f"{SITE}/shop/"
+    img = f"{SITE}/img/og-collage.jpg"
+    newest = live_books()[-1]
+    bundles = "\n".join(bundle_aside(x, prefix) for x in BUNDLES)
+    # Mark the first bundle pill as the above-fold CTA the sticky bar watches.
+    bundles = bundles.replace('class="pill"', 'class="pill" id="hero-cta"', 1)
+    blocks = []
+    for sn in all_seasons():
+        bs = books_in(sn)
+        cards = "\n".join(book_card(b, prefix, newest) for b in bs)
+        rng = f'{bs[0]["n"]}–{bs[-1]["n"]}'
+        blocks.append(f'''<div class="season-block">
+<div class="shelf-head s{sn}"><div><h3>Season {sn} · <span lang="zh-Hant">第{ZH_NUM[sn - 1]}輯</span></h3>
+<p class="range">Books {rng}</p></div>
+<a class="shelf-link" href="{prefix}season-{sn}/"><span lang="zh-Hant">看這一輯</span><small>Season page</small></a></div>
+<div class="grid">{cards}</div></div>''')
+    graph = {"@context": "https://schema.org", "@graph": [
+        *bundle_products(),
+        {"@type": "ItemList", "name": "Pip the Mole picture books",
+         "itemListElement": [{"@type": "ListItem", "position": b["n"], "url": f"{SITE}/{b['slug']}/", "name": b["en"]}
+                             for b in live_books()]},
+    ]}
+    css = ROOT_CSS + SHELL_CSS + PAGE_CSS
+    header = site_header(1, "shop")
+    s = head(title, desc, BASE_KW, url, img, css=css, header=header, bodycls="shop has-sticky",
+             extra_head=ld_script(graph))
+    s += f'''<main id="main"><div class="wrap">
+<h1 class="page-h1"><span lang="zh-Hant">商店</span><span class="en">Shop</span></h1>
+<p class="lede">Singles are US${PRICE}. A 6-book set starts at US${min_bundle_price()}. <span lang="zh-Hant">單本 US${PRICE}。六本套裝由 US${min_bundle_price()} 起。</span></p>
+<p class="lede">Checkout on Gumroad. <span lang="zh-Hant">結帳在 Gumroad。這頁的橙色按鈕都會去 Gumroad。</span></p>
+<section class="section" id="bundles">
+<h2>三套六本 · Three 6-book sets</h2>
+<div class="bundle-grid">{bundles}</div>
+</section>
+<section class="section" id="samples">
+<h2><span lang="zh-Hant">單本</span> · Singles</h2>
+<p class="lede" id="free">Every book has a free sample. <span lang="zh-Hant">每本都有免費試讀。</span> The outline button is the sample; the orange button buys that one book on Gumroad.</p>
+{"".join(blocks)}
+</section>
+<section class="quiet" id="other">
+<h2>其他店／周邊 · Other shops</h2>
+<p class="lede">These are not the Gumroad checkout. Etsy sells the same PDF ebooks. Redbubble sells stickers, mugs and other merch. <span lang="zh-Hant">這裡不是 Gumroad 結帳。Etsy 是同一套 PDF；Redbubble 是貼紙、杯子等周邊。</span></p>
+<p class="chips">
+<a class="chip" href="{ETSY}" target="_blank" rel="noopener">Etsy · <span lang="zh-Hant">同一套 PDF</span></a>
+<a class="chip" href="{REDBUBBLE}" target="_blank" rel="noopener">Redbubble · <span lang="zh-Hant">周邊</span></a>
+</p>
+</section>
+</div></main>
+'''
+    return s + finish(1, sticky_bar("#bundles"))
+
+def about_page():
+    prefix = "../"
+    title = "About Pip the Mole · 關於皮皮繪本 · PP O"
+    desc = ("Pip the Mole picture books are written by PP O in Hong Kong. Illustrations are AI-generated. "
+            "Bilingual English and Traditional Chinese, ages 3–6. "
+            "故事由香港的 PP O 創作，插圖由 AI 生成，適合 3–6 歲。")
+    url = f"{SITE}/about/"
+    img = f"{SITE}/img/og-collage.jpg"
+    css = ROOT_CSS + SHELL_CSS + PAGE_CSS
+    header = site_header(1, "about")
+    graph = {"@context": "https://schema.org", "@type": "AboutPage",
+             "name": "About Pip the Mole 關於皮皮繪本", "url": url,
+             "description": desc, "isPartOf": SITE + "/"}
+    s = head(title, desc, BASE_KW, url, img, css=css, header=header, bodycls="about", extra_head=ld_script(graph))
+    s += f'''<main id="main"><div class="wrap prose">
+<p class="kicker"><a href="{prefix}">← Pip the Mole · <span lang="zh-Hant">皮皮繪本</span></a></p>
+<h1 class="page-h1"><span lang="zh-Hant">關於皮皮</span><span class="en">About Pip</span></h1>
+<h2><span lang="zh-Hant">誰在寫這些故事</span> · Who writes them</h2>
+<p>Pip the Mole stories are written by PP O in Hong Kong. Pip is a little mole. Robin and Rabbit are with him from the first book. Pom the hedgehog arrives with the first snow, and Season 3 follows a steady light to Old Badger's door.</p>
+<p class="zh" lang="zh-Hant">皮皮繪本的故事，由香港的 PP O 創作。皮皮是一隻小鼴鼠。知更鳥和兔子從第一本就在他身邊。第一場雪帶來刺蝟寶寶蓬蓬。第三輯跟著一點不閃的光，走到河谷裡獾婆婆的門前。</p>
+<h2><span lang="zh-Hant">怎樣讀</span> · How to read them</h2>
+<p>They are bedtime picture books for ages 3–6. Every page has English and Traditional Chinese. The lines are short and calm, and each book holds one small idea: teamwork, sharing, saying sorry, trying again, and others like them. You can start anywhere. The seasons follow the same friends, and each book still reads on its own.</p>
+<p class="zh" lang="zh-Hant">適合 3–6 歲的睡前繪本。每一頁都有英文和繁體中文。句子短、語氣平靜，每本只放一個小道理，例如一起合作、分享、說對不起、再試一次。可以從任何一本開始。故事跟著同一班朋友走過四季，但每本都可以單獨讀。</p>
+<h2><span lang="zh-Hant">插圖</span> · The pictures</h2>
+<p>The illustrations are AI-generated. PP O writes the stories and the words, and chooses the order of the books. We say this plainly so families know how the pictures were made.</p>
+<p class="zh" lang="zh-Hant">插圖由 AI 生成。故事和文字由 PP O 編寫，書的次序也由 PP O 決定。我們直說，是想讓家長知道圖畫是怎樣做成的。</p>
+<h2><span lang="zh-Hant">檔案和年齡</span> · Files and age</h2>
+<p>Each book is a 19-page PDF: a cover, 16 story pages, a read-aloud page, and a back cover. You get a screen file and a print-ready 300 dpi file. Gumroad handles checkout and sends the download. The books are for ages 3–6, read aloud or alongside an early reader.</p>
+<p class="zh" lang="zh-Hant">每本是 19 頁 PDF：封面、16 頁故事、一頁可以跟著唸的句子，和封底。內有螢幕版和 300 dpi 印刷版。結帳和下載由 Gumroad 處理。適合 3–6 歲，可以睡前唸，也可以陪剛開始認字的孩子一起看。</p>
+<h2>Contact · <span lang="zh-Hant">聯絡</span></h2>
+<p><a href="mailto:{EMAIL}">{EMAIL}</a></p>
+<p class="zh" lang="zh-Hant">問題和印刷方面的查詢，請寫信到上面的電郵。</p>
+<p class="about-links"><a href="{prefix}shop/">Shop · <span lang="zh-Hant">商店</span></a><a href="{prefix}#books">Books · <span lang="zh-Hant">繪本</span></a><a href="{prefix}#faq">FAQ · <span lang="zh-Hant">常見問題</span></a></p>
+</div></main>
+'''
+    return s + finish(1)
+
+def index_page():
+    sn = featured_season()
+    bs = books_in(sn)
+    live = live_books()
+    newest = live[-1]
+    bund = bundle_for(sn)
+    meta = SEASON_META[sn]
+    n_live = len(live)
+    price = min_bundle_price()
+    label = bundle_label()
+    title = "Pip the Mole 皮皮繪本 · Bilingual Chinese English Picture Books, Ages 3–6"
+    desc = (f"{n_live} bilingual picture books for ages 3–6, English and Traditional Chinese on every page. "
+            f"Read a free sample, or get a 6-book set from US${price}. "
+            f"中英對照繪本 {n_live} 本，每本可免費試讀，六本套裝由 US${price} 起。")
+    ogtitle = f"Pip the Mole 皮皮繪本 · {n_live} bilingual picture books for ages 3–6 · 6-book sets from US${price}"
+    nums = (bund.get("fan") if bund else None) or [b["n"] for b in bs[:3]]
+    mid = book_by_n(nums[min(1, len(nums) - 1)])
+    extra = f'<link rel="preload" as="image" href="img/{mid["slug"]}/cover.webp">\n'
+    cards = "\n".join(book_card(b, "", newest) for b in bs)
+    entries = "\n".join(entry_card(s, "") for s in all_seasons())
+    chips = []
+    for s in all_seasons():
+        chips.append(f'<a class="s{s}" href="season-{s}/"><span lang="zh-Hant">第{ZH_NUM[s - 1]}輯</span><small>Season {s}</small></a>')
+    rng = f'{bs[0]["n"]}–{bs[-1]["n"]}'
+    gum = gum_url(bund["url"]) if bund else "shop/"
+    faq = "\n".join(
+        f'<details class="qa"{ " open" if i == 0 else ""}><summary><span class="q">{E(q)}</span>'
+        f'<span class="zh" lang="zh-Hant">{qz}</span></summary>'
+        f'<div class="a"><p>{E(a)}</p><p class="zh" lang="zh-Hant">{az}</p></div></details>'
+        for i, (q, qz, a, az) in enumerate(FAQ_HOME))
+    why = (
+        '<ul class="why-pills">'
+        '<li><span lang="zh-Hant">同頁中英對照</span><span class="en">Two languages, one page</span></li>'
+        '<li><span lang="zh-Hant">短而平靜</span><span class="en">Short and calm</span></li>'
+        '<li><span lang="zh-Hant">一個小道理</span><span class="en">One small lesson</span></li>'
+        '</ul>')
+    graph = {"@context": "https://schema.org", "@graph": [
+        *bundle_products(),
+        {"@type": "ItemList", "name": f"Pip the Mole Season {sn}",
+         "itemListElement": [{"@type": "ListItem", "position": b["n"], "url": f"{SITE}/{b['slug']}/", "name": b["en"]} for b in bs if status_of(b) == "live"]},
+        {"@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, qz, a, az in FAQ_HOME]},
+    ]}
+    css = ROOT_CSS + SHELL_CSS + HOME_CSS
+    header = site_header(0, "home")
+    s = head(title, desc, BASE_KW, f"{SITE}/", f"{SITE}/img/og-collage.jpg", ogtitle=ogtitle,
+             css=css, header=header, bodycls="home has-sticky", extra_head=extra + ld_script(graph))
+    s += f'''<main id="main">
+<div class="wrap">
+<section class="hero">
+<div class="hero-grid">
+<div class="hero-copy">
+<h1><span class="zh-hero" lang="zh-Hant">溫柔睡前故事</span><span class="en-hero">Gentle bedtime stories</span></h1>
+<p class="meta">Ages 3–6 · EN + 繁中 · 16 頁 · PDF</p>
+<div class="hero-actions">
+<a class="pill" id="hero-cta" href="shop/"><span lang="zh-Hant">{label}</span><small>6-book set · compare in the shop</small></a>
+<a class="textlink" id="free" href="shop/#samples"><span lang="zh-Hant">免費試讀</span> · Free sample →</a>
+</div>
+</div>
+<div class="hero-fan">{fan_links(nums, "")}</div>
+{why}
+</div>
+<nav class="season-chips" aria-label="Seasons">{"".join(chips)}</nav>
+</section>
+<section class="section" id="books">
+<div class="shelf-head s{sn}">
+<div>
+<h2><a href="season-{sn}/">Season {sn} · <span lang="zh-Hant">第{ZH_NUM[sn - 1]}輯</span></a></h2>
+<p class="range">Books {rng} · <span lang="zh-Hant">{meta["tone_zh"]}</span> {E(meta["tone_en"])}</p>
+</div>
+<a class="shelf-link" href="{gum}"><span lang="zh-Hant">呢輯套裝 US${bund["price"] if bund else price}</span> →<small>This set on Gumroad</small></a>
+</div>
+<div class="grid">{cards}</div>
+<p class="shelf-note"><span lang="zh-Hant">每本都有免費試讀。橙色按鈕在 Gumroad 結帳。</span><span class="en">Every book has a free sample. Orange buttons check out on Gumroad.</span></p>
+<p class="bundle-jump" id="bundles"><a href="shop/"><span lang="zh-Hant">三套六本套裝，在商店比價</span> · Compare all three sets →</a></p>
+</section>
+<section class="section" id="seasons">
+<h2><span lang="zh-Hant">三輯入口</span> · Three seasons</h2>
+<p class="lede">Season {sn} is on this page. The other seasons have their own pages. <span lang="zh-Hant">這一頁是第{ZH_NUM[sn - 1]}輯。另外兩輯有自己的系列頁。</span></p>
+<div class="entries mt14">{entries}</div>
+</section>
+<section class="section" id="faq">
+<h2>Questions · <span lang="zh-Hant">常見問題</span></h2>
+<div class="faq">{faq}</div>
+<p class="faq-more"><a href="about/"><span lang="zh-Hant">年齡、語言和創作說明</span> · Ages, language, and how the books are made</a></p>
+</section>
+</div>
+</main>
+'''
+    return s + finish(0, sticky_bar("shop/"))
 
 def make_og_collage():
     from PIL import ImageDraw, ImageFont
@@ -624,259 +1257,36 @@ def make_og_collage():
     d.text((x + 24, 412), "6-book set · US$9.99", font=f3, fill=(255, 255, 255))
     bg.save(out, "JPEG", quality=84, optimize=True, progressive=True)
 
-def book_card(b, newest):
-    slug = b["slug"]
-    theme_en = (b.get("tag_en") or b["theme_en"])
-    theme = f'<p class="theme">{E(theme_en[:1].upper() + theme_en[1:])}<span class="zh" lang="zh-Hant">{b["theme_zh"]}</span></p>'
-    img = (f'<img src="img/{slug}/cover-sm.webp" srcset="img/{slug}/cover-sm.webp 360w, img/{slug}/cover.webp 600w" '
-           f'sizes="(max-width:720px) 45vw, 330px" width="360" height="480" loading="lazy" decoding="async" '
-           f'alt="Cover of {E(b["en"])} / {b["zh"]}">')
-    if status_of(b) != "live":
-        return f"""<article class="card soon">
-<div class="cover">{img}</div>
-<div class="card-body">
-<p class="eyebrow">Book {b['n']}</p>
-<h3>{E(b['en'])}</h3>
-<p class="zh" lang="zh-Hant">{b['zh']}</p>
-{theme}
-<div class="card-foot"><span>Coming soon<span class="zh" lang="zh-Hant">即將推出</span></span></div>
-</div>
-</article>"""
-    tag = ' <span class="tag">New <span lang="zh-Hant">新</span></span>' if b is newest else ""
-    sample_link = (f'<a href="{GR}{b["sample"]}{UTM}">Free sample<span class="zh" lang="zh-Hant">免費試讀</span></a>\n' if b.get("sample")
-                   else '<span>Free sample soon<span class="zh" lang="zh-Hant">免費試讀即將推出</span></span>\n')
-    return f"""<article class="card">
-<a class="cover" href="{slug}/">{img}</a>
-<div class="card-body">
-<p class="eyebrow">Book {b['n']}{tag}</p>
-<h3><a href="{slug}/">{E(b['en'])}</a></h3>
-<p class="zh" lang="zh-Hant">{b['zh']}</p>
-{theme}
-<div class="card-foot">
-{sample_link}<a class="price" href="{GR}{b['paid']}{UTM}" aria-label="Buy {E(b['en'])}, US${price_of(b)}">US${price_of(b)}</a>
-</div>
-</div>
-</article>"""
-
-def index_page():
-    live = live_books()
-    n_live = len(live)
-    newest = live[-1]
-    min_bundle = min(BUNDLES, key=lambda x: float(x["price"]))["price"]
-    multi = len(BUNDLES) > 1
-    title = "Pip the Mole 皮皮繪本 · Bilingual Chinese English Picture Books, Ages 3–6 · Free Samples & Bundle" + ("s" if multi else "")
-    if multi:
-        k = len(BUNDLES)
-        k_en = ["", "one", "two", "three", "four", "five"][k]
-        k_zh = ["", "一", "兩", "三", "四", "五"][k]
-        rng = [f"{x['books'][0]}–{x['books'][-1]}" for x in BUNDLES]
-        rng_en = ", ".join(f"Books {r}" for r in rng[:-1]) + f" or Books {rng[-1]}" if k > 2 else f"Books {rng[0]} or Books {rng[1]}"
-        rng_short = ", ".join(rng[:-1]) + f" or {rng[-1]}" if k > 2 else f"{rng[0]} or {rng[1]}"
-        rng_zh = "、".join(f"第 {r} 集" for r in rng)
-        ogtitle = f"Pip the Mole 皮皮繪本 · {n_live} bilingual picture books for ages 3–6 · {k_en} 6-book sets from US${min_bundle}"
-        desc = (f"{n_live} bilingual picture books for kids aged 3–6, English + Traditional Chinese on every page. "
-                f"Read a free sample of any book, or get a 6-book set ({rng_en}) from US${min_bundle}. "
-                f"中英對照雙語繪本，共 {n_live} 本：每本免費試讀，或者買六本套裝（{rng_zh}{k_zh}套）。")
-        cta = f'Get a 6-book set · Books {rng_short} · <span lang="zh-Hant">六本套裝（{k_zh}套）</span> US${min_bundle}+'
-        cta_short = f'Get a 6-book set · <span lang="zh-Hant">六本套裝（{k_zh}套）</span> US${min_bundle}+'   # sticky bar: keep to one line on phones
-    else:
-        ogtitle = f"Pip the Mole 皮皮繪本 · {n_live} bilingual picture books for ages 3–6 · 6-book set from US${min_bundle}"
-        desc = (f"{n_live} bilingual picture books for kids aged 3–6, English + Traditional Chinese on every page. "
-                f"Read a free sample of any book, or get a 6-book set from US${min_bundle}. 中英對照雙語繪本，共 {n_live} 本：每本免費試讀，或者買六本套裝。")
-        cta = f'Get a 6-book set · <span lang="zh-Hant">六本套裝</span> US${min_bundle}+'
-        cta_short = cta
-
-    no_sample = [b["n"] for b in live if not b.get("sample")]
-    if no_sample:   # a free sample is not live yet for some books
-        ns = " and ".join(str(n) for n in no_sample)
-        free_lede = (f'<p class="lede" id="free">Every book has a free PDF sample (Book{"s" if len(no_sample) > 1 else ""} {ns}: coming soon).'
-                     f'<span class="zh" lang="zh-Hant">每本都有免費試讀（第 {"、".join(str(n) for n in no_sample)} 集即將推出）。</span></p>')
-    else:
-        free_lede = '<p class="lede" id="free">Every book has a free PDF sample.<span class="zh" lang="zh-Hant">每本都有免費試讀。</span></p>'
-    # Books grid: one grid per season, series order, each book once
-    seasons = sorted({season_of(b) for b in BOOKS})
-    blocks = []
-    for sn in seasons:
-        bs = sorted((b for b in BOOKS if season_of(b) == sn), key=lambda x: x["n"])
-        rng = f"Books {bs[0]['n']}–{bs[-1]['n']}" if len(bs) > 1 else f"Book {bs[0]['n']}"
-        zh_s = f"第{ZH_NUM[sn - 1]}輯"
-        bund = next((x for x in BUNDLES if x["season"] == sn), None)
-        blink = (f'<a href="#bundle-{bund["id"]}">Books {bund["books"][0]}–{bund["books"][-1]} in one bundle · US${bund["price"]} →</a>' if bund else "")
-        cards = "\n".join(book_card(b, newest) for b in bs)
-        blocks.append(f"""<div class="season-block" id="season-{sn}">
-<div class="season"><h3>Season {sn} · {rng}<span class="zh" lang="zh-Hant">{zh_s}</span></h3>{blink}</div>
-<div class="grid">
-{cards}
-</div>
-</div>""")
-
-    # Look inside: 4 pages from the newest live book (all inside its free sample)
-    peek = newest
-    zh_peek = f"以下是第{ZH_NUM[peek['n'] - 1]}集《{peek['zh']}》其中四頁。"
-    strip = "".join(
-        f'<li><img src="img/{peek["slug"]}/page-{i}.webp" width="720" height="960" loading="lazy" decoding="async" '
-        f'alt="{E(peek["en"])}, story page {i}: illustration with Traditional Chinese and English text"></li>' for i in range(1, 5))
-
-    # Bundles (sage band)
-    bl = []
-    for x in BUNDLES:
-        each = sum(float(price_of(b)) for b in BOOKS if b["n"] in x["books"])
-        fan = "".join(f'<img src="img/{b["slug"]}/cover.webp" width="600" height="800" loading="lazy" decoding="async" alt="">'
-                      for k in x.get("fan", x["books"][:3]) for b in BOOKS if b["n"] == k)
-        n = len(x["books"])
-        bl.append(f"""<div class="bundle" id="bundle-{x['id']}">
-<div>
-<p class="label">{E(x['label_en'])} · <span lang="zh-Hant">{x['label_zh']}</span></p>
-<h2>{E(x['en'])}</h2>
-<p class="zh" lang="zh-Hant">{x['zh']}</p>
-<p class="price-big">US${x['price']}</p>
-<p class="price-note">Instead of US${each:.2f} one by one ({n} × US${PRICE}). Pay what you want from US${x['price']}; paying more helps us make the next Pip book. Instant PDF download via Gumroad.<span class="zh" lang="zh-Hant">逐本買要 US${each:.2f}。US${x['price']} 起自訂價錢，多付一點可以支持我們出下一本；經 Gumroad 即時下載 PDF。</span></p>
-<a class="btn" href="{x['url']}{UTM}">{E(x['btn_en'])}</a>
-</div>
-<div class="fan" aria-hidden="true">{fan}</div>
-</div>""")
-
-    faq = "\n".join(
-        f'<details{" open" if i == 0 else ""}><summary><span class="q">{E(q)}</span><span class="zh" lang="zh-Hant">{qz}</span></summary>'
-        f'<div class="a"><p>{E(a)}</p><p class="zh" lang="zh-Hant">{az}</p></div></details>'
-        for i, (q, qz, a, az) in enumerate(FAQ))
-
-    why = "\n".join(
-        f'<li><img class="spot" src="img/home/spot-{k}.webp" width="240" height="240" loading="lazy" decoding="async" alt="">'
-        f'<h3>{E(t)}</h3><p class="zh" lang="zh-Hant">{tz}</p><p class="body">{E(body)}</p></li>' for k, t, tz, body in WHY)
-
-    ld = {
-        "@context": "https://schema.org",
-        "@graph": [
-            *[{"@type": "Product", "name": f"Pip the Mole {x['label_en']} bundle · {x['zh']}",
-               "description": f"{len(x['books'])} bilingual English + Traditional Chinese picture books (PDF) for ages 3–6.",
-               "image": f"{SITE}/img/og-collage.jpg", "brand": {"@type": "Brand", "name": "Pip the Mole Books"},
-               "offers": {"@type": "Offer", "price": x["price"], "priceCurrency": "USD", "availability": "https://schema.org/InStock", "url": x["url"]}}
-              for x in BUNDLES],
-            {"@type": "ItemList", "name": "Pip the Mole picture books",
-             "itemListElement": [{"@type": "ListItem", "position": b["n"], "url": f"{SITE}/{b['slug']}/", "name": b["en"]} for b in live]},
-            {"@type": "FAQPage", "mainEntity": [
-                {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, qz, a, az in FAQ]},
-        ]}
-    header = f"""<div class="wrap"><header class="nav">
-<a class="brand" href="{SITE}/"><b>Pip the Mole</b><span lang="zh-Hant">皮皮繪本</span></a>
-<nav aria-label="Sections"><ul><li><a href="#books">Books</a></li><li><a href="#bundles">Bundles</a></li><li><a href="#free">Free</a></li><li><a href="#faq">FAQ</a></li></ul></nav>
-</header></div>"""
-    hero_pre = (f'<link rel="preload" as="image" href="img/home/hero-960.webp" '
-                f'imagesrcset="img/home/hero-960.webp 960w, img/home/hero-1600.webp 1600w" imagesizes="(max-width:1128px) 100vw, 1080px">\n')
-    s = head(title, desc, BASE_KW + ", teamwork, sharing, kindness", f"{SITE}/", f"{SITE}/img/og-collage.jpg",
-             ogtitle=ogtitle, css=ROOT_CSS + HOME_CSS, header=header, bodycls="lp", extra_head=hero_pre)
-    s += f"""<main>
-<script type="application/ld+json">{json.dumps(ld, ensure_ascii=False)}</script>
-<div class="wrap">
-<section class="hero">
-<div class="hero-text">
-<h1>Gentle bedtime stories in English and Chinese</h1>
-<p class="zh" lang="zh-Hant">中英對照睡前繪本：小鼴鼠皮皮</p>
-<p class="body">Picture books about Pip the mole and friends, with English and Traditional Chinese on every page. Ages 3–6.<span class="zh" lang="zh-Hant">小鼴鼠皮皮的短篇繪本，每頁中英對照，3–6 歲。</span></p>
-<div class="actions">
-<a class="btn" id="hero-cta" href="#bundles">{cta}</a>
-<a class="textlink" href="#books">Read a free sample · <span lang="zh-Hant">免費試讀</span> →</a>
-</div>
-</div>
-<div class="hero-art"><img src="img/home/hero-960.webp" srcset="img/home/hero-960.webp 960w, img/home/hero-1600.webp 1600w" sizes="(max-width:1128px) 100vw, 1080px" width="1600" height="889" fetchpriority="high" decoding="async" alt="Pip, Robin and Rabbit watching the sunset over the pond"></div>
-<ul class="why">
-{why}
-</ul>
-</section>
-</div>
-
-<div class="wave" aria-hidden="true"></div>
-
-<section class="section" id="books">
-<div class="wrap">
-<div class="section-head"><h2>The books</h2><p class="zh" lang="zh-Hant">全部繪本</p>
-{free_lede}</div>
-{chr(10).join(blocks)}
-</div>
-</section>
-
-<div class="wave" aria-hidden="true"></div>
-
-<section class="section" id="inside">
-<div class="wrap">
-<div class="section-head"><h2>Look inside</h2><p class="zh" lang="zh-Hant">內頁預覽</p>
-<p class="lede">Four pages from Book {peek['n']}, <i>{E(peek['en'])}</i>.<span class="zh" lang="zh-Hant">{zh_peek}</span></p></div>
-<ul class="strip">{strip}</ul>
-<p class="strip-more"><a href="{peek['slug']}/">More about this book · <span lang="zh-Hant">看看這本書</span> →</a></p>
-</div>
-</section>
-
-<section class="section band" id="bundles">
-<div class="wrap">
-{chr(10).join(bl)}
-</div>
-</section>
-
-<section class="section" id="faq">
-<div class="wrap">
-<div class="section-head"><h2>Questions</h2><p class="zh" lang="zh-Hant">常見問題</p></div>
-<div class="faq">
-{faq}
-</div>
-</div>
-</section>
-
-<section class="more-ways" id="more-ways">
-<div class="wrap">
-<h2>More ways to get Pip</h2>
-<p class="zh" lang="zh-Hant">其他購買渠道</p>
-<p class="chips">
-<a class="chip" href="{REDBUBBLE}" target="_blank" rel="noopener">Redbubble <span class="zh" lang="zh-Hant">周邊產品</span></a>
-<a class="chip" href="{ETSY}" target="_blank" rel="noopener">Etsy <span class="zh" lang="zh-Hant">PDF 電子書</span></a>
-</p>
-<p class="note">Redbubble: stickers, mugs and other merch. Etsy: the same PDF ebooks. <span lang="zh-Hant">Redbubble：貼紙、杯子等周邊產品；Etsy：同樣的 PDF 電子書。</span></p>
-</div>
-</section>
-</main>
-
-<div class="wave" aria-hidden="true"></div>
-<footer>
-<div class="wrap">
-<a class="brand" href="{SITE}/"><b>Pip the Mole</b><span lang="zh-Hant">皮皮繪本</span></a>
-{FOOT_BODY}
-</div>
-</footer>
-
-<div class="sticky" id="sticky" aria-hidden="true">
-<a class="btn" href="#bundles" tabindex="-1">{cta_short}</a>
-</div>
-<script>
-(function(){{
-  // Sticky mobile CTA: only after the hero button scrolls away, hidden while the bundle band is on screen,
-  // so there is never more than one orange button in view.
-  var st=document.getElementById("sticky"), hero=document.getElementById("hero-cta"), band=document.getElementById("bundles");
-  if(!st||!hero||!band||!("IntersectionObserver" in window)) return;
-  var heroVis=true, bandVis=false;
-  function upd(){{ var on=!heroVis&&!bandVis; st.classList.toggle("show",on); st.setAttribute("aria-hidden",on?"false":"true");
-    st.querySelector("a").tabIndex=on?0:-1; }}
-  new IntersectionObserver(function(e){{heroVis=e[0].isIntersecting;upd();}}).observe(hero);
-  new IntersectionObserver(function(e){{bandVis=e[0].isIntersecting;upd();}}).observe(band);
-}})();
-</script>
-{UTM_JS}
-</body>
-</html>
-"""
-    return s
-
 def main():
     for b in live_books():
         if not (ROOT / "img" / b["slug"] / "page-4.webp").exists() or os.environ.get("REIMG"):
             make_images(b)
-        d = ROOT / b["slug"]; d.mkdir(exist_ok=True)
+        d = ROOT / b["slug"]
+        d.mkdir(exist_ok=True)
         (d / "index.html").write_text(book_page(b), encoding="utf-8")
     make_home_images()
     make_og_collage()
     (ROOT / "index.html").write_text(index_page(), encoding="utf-8")
-    urls = [f"{SITE}/"] + [f"{SITE}/{b['slug']}/" for b in sorted(live_books(), key=lambda x: -x["n"])]
-    (ROOT / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        + "".join(f"  <url><loc>{u}</loc><lastmod>2026-10-01</lastmod></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
+    for sn in all_seasons():
+        d = ROOT / f"season-{sn}"
+        d.mkdir(exist_ok=True)
+        (d / "index.html").write_text(season_page(sn), encoding="utf-8")
+    shop = ROOT / "shop"
+    shop.mkdir(exist_ok=True)
+    (shop / "index.html").write_text(shop_page(), encoding="utf-8")
+    about = ROOT / "about"
+    about.mkdir(exist_ok=True)
+    (about / "index.html").write_text(about_page(), encoding="utf-8")
+    day = date.today().isoformat()
+    urls = [f"{SITE}/"]
+    urls += [f"{SITE}/season-{sn}/" for sn in all_seasons()]
+    urls += [f"{SITE}/shop/", f"{SITE}/about/"]
+    urls += [f"{SITE}/{b['slug']}/" for b in sorted(live_books(), key=lambda x: -x["n"])]
+    (ROOT / "sitemap.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "".join(f"  <url><loc>{u}</loc><lastmod>{day}</lastmod></url>\n" for u in urls)
+        + "</urlset>\n", encoding="utf-8")
     (ROOT / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n", encoding="utf-8")
     (ROOT / "ads.txt").write_text(ADS_TXT, encoding="utf-8")
     (ROOT / ".nojekyll").write_text("")
